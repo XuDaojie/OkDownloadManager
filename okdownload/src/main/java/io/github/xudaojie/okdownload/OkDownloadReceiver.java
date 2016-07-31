@@ -19,16 +19,13 @@ public class OkDownloadReceiver extends BroadcastReceiver {
      * 消息被点击 todo 下载完成后点击、下载中点击
      */
     public static final String NOTIFICATION_CLICKED = "android.intent.action.DOWNLOAD_NOTIFICATION_CLICKED";
-    /**
-     * 下载进度改变时
-     */
-    public static final String PERCENT_CHANGE = "action.PERCENT_CHANGE";
 
     @Override
     public void onReceive(Context context, Intent intent) {
         int percent = intent.getIntExtra("percent", 0);
         int id = intent.getIntExtra("id", 0);
         String title = intent.getStringExtra("title");
+        String filePath = intent.getStringExtra("filePath");
         Log.d("OkHttpReceiver", percent + "%");
 
         Notification notification;
@@ -45,7 +42,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
             receiverIntent.setAction(NOTIFICATION_CLICKED);
             receiverIntent.putExtras(intent);
             PendingIntent pendingIntent = PendingIntent
-                    .getBroadcast(context, 0, receiverIntent, PendingIntent.FLAG_ONE_SHOT);
+                    .getBroadcast(context, 0, receiverIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
             notification = new NotificationCompat.Builder(context)
                     .setContentTitle(title)
@@ -53,6 +50,8 @@ public class OkDownloadReceiver extends BroadcastReceiver {
                     .setSmallIcon(android.R.drawable.presence_online) // 必须设置
                     .setContentIntent(pendingIntent)
                     .build();
+
+            ApkUtils.install(context, filePath);
         }
 //        notification.flags = Notification.FLAG_AUTO_CANCEL;
 
