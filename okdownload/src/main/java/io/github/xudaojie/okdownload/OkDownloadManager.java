@@ -129,6 +129,9 @@ public class OkDownloadManager extends Service {
             String title = intent.getStringExtra("title");
             String fileName = intent.getStringExtra("fileName");
             String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
+
+            filePath = checkOrCreateFileName(filePath, 0);
+
             download(id, url, title, filePath);
         } else {
             // 服务尚未停止Apk被回收,会再度启动Service
@@ -232,6 +235,27 @@ public class OkDownloadManager extends Service {
             fos.close();
             stream.close();
         }
+    }
+
+    /**
+     * 检查文件名是否已存在 在则重命名(1)(2)
+     * @param index 如果为0则不显示 xxx(1).apk xxx(2).apk
+     */
+    private String checkOrCreateFileName(String filePath, int index) {
+        String filePathNoType = filePath.substring(0, filePath.lastIndexOf('.'));
+        String fileType = filePath.substring(filePath.lastIndexOf('.'), filePath.length());
+
+        String finalFilePath = filePath;
+        if (index != 0) {
+            finalFilePath = filePathNoType + "(" + index + ")" + fileType;
+        }
+
+        File file = new File(finalFilePath);
+        if(!file.exists()) {
+            return finalFilePath;
+        }
+
+        return checkOrCreateFileName(filePath, ++index);
     }
 
 }
