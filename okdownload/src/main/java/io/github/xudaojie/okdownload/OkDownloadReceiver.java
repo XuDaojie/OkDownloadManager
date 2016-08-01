@@ -34,7 +34,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
                     .setContentTitle(title)
                     .setContentText("已下载:" + percent + "%")
                     .setProgress(100, percent, false)
-                    .setSmallIcon(android.R.drawable.presence_online) // 必须设置
+                    .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
 //                .setContentIntent(pendingIntent)
                     .build();
         } else {
@@ -47,7 +47,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
             notification = new NotificationCompat.Builder(context)
                     .setContentTitle(title)
                     .setContentText("点击进行安装")
-                    .setSmallIcon(android.R.drawable.presence_online) // 必须设置
+                    .setSmallIcon(android.R.drawable.stat_sys_download_done) // 必须设置
                     .setContentIntent(pendingIntent)
                     .build();
 
