@@ -13,7 +13,7 @@ startService(i);
 ```
 
 ## Including in your project
-要将**MultiStateView**引入你的项目，需要修改你的**build.gradle**
+要将**OkDownloadManager**引入你的项目，需要修改你的**build.gradle**
 
 ### Add repository 
 ```groovy
