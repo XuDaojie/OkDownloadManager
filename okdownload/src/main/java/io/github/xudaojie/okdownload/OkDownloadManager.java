@@ -7,7 +7,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Binder;
 import android.os.Environment;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
@@ -33,6 +32,8 @@ import okhttp3.Response;
  * Created by xdj on 16/7/25.
  */
 public class OkDownloadManager extends Service {
+
+    public static final String TEMP_SUFFIX = ".t"; // 中间文件后缀
 
     private static final String TAG = "OkDownloadManager";
 
@@ -143,7 +144,7 @@ public class OkDownloadManager extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         Log.d("Service", "onBind");
-        return new MyBinder();
+        return null;
     }
 
     @Override
@@ -178,7 +179,7 @@ public class OkDownloadManager extends Service {
                 .setContentTitle(title)
                 .setContentText("")
                 .setProgress(100, 0, true)
-                .setSmallIcon(android.R.drawable.presence_online) // 必须设置
+                .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
                 .setContentIntent(pendingIntent) // 指定点击事件对应的pendingIntent
 //                .addAction(android.R.mipmap.sym_def_app_icon, "确定", pendingIntent)
                 .build();
@@ -205,12 +206,11 @@ public class OkDownloadManager extends Service {
                 .enqueue(new Callback() {
                     @Override
                     public void onFailure(Call call, IOException e) {
-
                     }
 
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
-                        saveFile(filePath, response.body().byteStream());
+                        saveFile(filePath + TEMP_SUFFIX, response.body().byteStream());
                     }
                 });
     }
@@ -231,12 +231,6 @@ public class OkDownloadManager extends Service {
             fos.flush();
             fos.close();
             stream.close();
-        }
-    }
-
-    class MyBinder extends Binder {
-        public OkDownloadManager getService() {
-            return OkDownloadManager.this;
         }
     }
 

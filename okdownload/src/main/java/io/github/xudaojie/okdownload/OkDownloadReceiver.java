@@ -9,6 +9,8 @@ import android.content.Intent;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
+import java.io.File;
+
 /**
  * Created by xdj on 16/7/26.
  */
@@ -50,6 +52,10 @@ public class OkDownloadReceiver extends BroadcastReceiver {
                     .setSmallIcon(android.R.drawable.stat_sys_download_done) // 必须设置
                     .setContentIntent(pendingIntent)
                     .build();
+
+            // 修改文件名为正确文件名
+            File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
+            currentFile.renameTo(new File(filePath));
 
             ApkUtils.install(context, filePath);
         }
