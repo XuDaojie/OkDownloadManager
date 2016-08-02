@@ -11,6 +11,8 @@ import android.util.Log;
 
 import java.io.File;
 
+import io.github.xudaojie.okdownload.util.FileUtils;
+
 /**
  * Created by xdj on 16/7/26.
  */
@@ -57,7 +59,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
             File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
             currentFile.renameTo(new File(filePath));
 
-            ApkUtils.install(context, filePath);
+            FileUtils.installApk(context, filePath);
         }
 //        notification.flags = Notification.FLAG_AUTO_CANCEL;
 

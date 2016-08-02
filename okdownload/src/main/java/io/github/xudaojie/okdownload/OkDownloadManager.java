@@ -14,13 +14,11 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.github.xudaojie.okdownload.util.FileUtils;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Interceptor;
@@ -130,7 +128,7 @@ public class OkDownloadManager extends Service {
             String fileName = intent.getStringExtra("fileName");
             String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
 
-            filePath = checkOrCreateFileName(filePath, 0);
+            filePath = FileUtils.checkOrCreateFileName(filePath, 0);
 
             download(id, url, title, filePath);
         } else {
@@ -213,49 +211,11 @@ public class OkDownloadManager extends Service {
 
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
-                        saveFile(filePath + TEMP_SUFFIX, response.body().byteStream());
+                        FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream());
                     }
                 });
     }
 
-    private void saveFile(String outPath, InputStream stream) throws IOException {
-        File file = new File(outPath);
-        int len;
-        byte[] buf = new byte[2048];
 
-//        InputStream stream = response.body().byteStream();
-        FileOutputStream fos = null;
-        try {
-            fos = new FileOutputStream(file);
-            while ((len = stream.read(buf)) != -1) {
-                fos.write(buf, 0, len);
-            }
-        } finally {
-            fos.flush();
-            fos.close();
-            stream.close();
-        }
-    }
-
-    /**
-     * 检查文件名是否已存在 在则重命名(1)(2)
-     * @param index 如果为0则不显示 xxx(1).apk xxx(2).apk
-     */
-    private String checkOrCreateFileName(String filePath, int index) {
-        String filePathNoType = filePath.substring(0, filePath.lastIndexOf('.'));
-        String fileType = filePath.substring(filePath.lastIndexOf('.'), filePath.length());
-
-        String finalFilePath = filePath;
-        if (index != 0) {
-            finalFilePath = filePathNoType + "(" + index + ")" + fileType;
-        }
-
-        File file = new File(finalFilePath);
-        if(!file.exists()) {
-            return finalFilePath;
-        }
-
-        return checkOrCreateFileName(filePath, ++index);
-    }
 
 }

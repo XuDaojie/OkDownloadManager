@@ -30,3 +30,6 @@ dependencies {
     compile 'com.github.XuDaojie:OkDownloadManager:v0.1.0'
 }
 ```
+
+## TODO
+断点续传
