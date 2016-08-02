@@ -228,6 +228,8 @@ public class OkDownloadManager extends Service {
         NotificationManager manager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify(id, notification);
 
+
+
         Request request = new Request.Builder()
                 .url(url)
                 .get()

@@ -1,5 +1,7 @@
 package io.github.xudaojie.okdownload.util;
 
+import android.content.Context;
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import io.github.xudaojie.okdownload.OkDownloadManager;
@@ -9,9 +11,37 @@ import io.github.xudaojie.okdownload.OkDownloadManager;
  */
 
 public class SQLiteUtils {
+    private static final String DATABASE_NAME = "download.db";
+    private static final String TABLE_NAME = "t_download_manager";
+
+    private static SQLiteDatabase sDatabase;
+
+    public static SQLiteDatabase getDatabase(Context context) {
+        if (sDatabase == null) {
+            sDatabase = SQLiteDatabase.openOrCreateDatabase(
+                    context.getFilesDir() + "/download.db", null);
+            return sDatabase;
+        } else if (!sDatabase.isOpen()) {
+            sDatabase = SQLiteDatabase.openDatabase(context.getFilesDir() + "download.db", null,
+                    SQLiteDatabase.OPEN_READWRITE);
+        }
+        return sDatabase;
+    }
+
+    /**
+     * 检查表是否已存在
+     */
+    public static boolean tableExist(SQLiteDatabase db) {
+        // 查询表是否存在
+        String sql = "select count(*) " +
+                "from sqlite_master where type='table' and name = '" + TABLE_NAME +"'";
+        Cursor cursor = db.rawQuery(sql, null);
+
+        return cursor.getInt(0) == 0;
+    }
 
     public static void createTable(SQLiteDatabase db) {
-        String sql = "CREATE TABLE t_download_manager(\n" +
+        String sql = "CREATE TABLE " + TABLE_NAME + "(\n" +
                 "       allow_write Boolean,\n" +
                 "       id integer NOT NULL,\n" +
                 "       last_modify_timestamp integer,\n" +
@@ -35,7 +65,7 @@ public class SQLiteUtils {
                               String localUri, String mediaType, String imediaProviderUri,
                               String reason, int status, String title,
                               long totalSizeBytes, String uri) {
-        db.execSQL("INSERT INTO t_download_manager VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        db.execSQL("INSERT INTO " + TABLE_NAME + " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     }
 
     public static void insert(SQLiteDatabase db, long id, String localUri, String title) {
@@ -45,7 +75,7 @@ public class SQLiteUtils {
     }
 
     public static void update(SQLiteDatabase db, long id, int status, long totalSizeBytes) {
-        String sql = "UPDATE t_download_manager\n" +
+        String sql = "UPDATE " + TABLE_NAME +"\n" +
                 "SET status = ?,\n" +
                 " total_size_bytes = ?\n" +
                 "WHERE\n" +
@@ -53,6 +83,5 @@ public class SQLiteUtils {
         Object[] args = new Object[] {status, totalSizeBytes, id};
         db.execSQL(sql, args);
     }
-
 
 }
