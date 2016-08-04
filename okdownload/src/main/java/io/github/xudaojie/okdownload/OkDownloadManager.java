@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.github.xudaojie.okdownload.util.FileUtils;
+import io.github.xudaojie.okdownload.util.SQLiteUtils;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Interceptor;
@@ -112,17 +113,19 @@ public class OkDownloadManager extends Service {
                                             long currentTimeline = System.currentTimeMillis();
                                             if ((currentTimeline - mTimeline > 600 && mPercent != percent)
                                                     || done) {
+                                                int id = 0;
+                                                String title = "";
+                                                String filePath = "";
+
+                                                mTimeline = currentTimeline;
+                                                mPercent = percent;
 
                                                 if (done) {
                                                     mUrl = null;
                                                     mPercent = -1;
+                                                    SQLiteUtils.update(mContext, id, STATUS_SUCCESSFUL, contentLength);
                                                 }
 
-                                                mTimeline = currentTimeline;
-                                                mPercent = percent;
-                                                int id = 0;
-                                                String title = "";
-                                                String filePath = "";
                                                 if (tagMap != null && tagMap.get("id") != null) {
                                                     id = (int) tagMap.get("id");
                                                     title = (String) tagMap.get("title");
@@ -154,8 +157,6 @@ public class OkDownloadManager extends Service {
             filter.addAction("ok_http_download");
             mBroadcastManager.registerReceiver(okHttpReceiver, filter);
         }
-
-//        download();
     }
 
     @Override
@@ -200,7 +201,7 @@ public class OkDownloadManager extends Service {
         super.onDestroy();
     }
 
-    public void download(int id, String url, String title, final String filePath) {
+    public void download(final int id, String url, final String title, final String filePath) {
         if (mUrl != null) {
             Log.d(TAG, "同时只能进行一个下载");
             return;
@@ -228,19 +229,17 @@ public class OkDownloadManager extends Service {
         NotificationManager manager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify(id, notification);
 
-
+        SQLiteUtils.insert(mContext, id, filePath, title);
 
         Request request = new Request.Builder()
                 .url(url)
                 .get()
                 .build();
-
         Map<String, Object> tags = new HashMap<>();
         tags.put("origin_tag", request.tag());
         tags.put("id", id);
         tags.put("title", title);
         tags.put("filePath", filePath);
-
         request = request.newBuilder()
                 .tag(tags)
                 .build();
@@ -249,10 +248,13 @@ public class OkDownloadManager extends Service {
                 .enqueue(new Callback() {
                     @Override
                     public void onFailure(Call call, IOException e) {
+                        SQLiteUtils.update(mContext, id, OkDownloadManager.STATUS_FAILED, 0);
                     }
 
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
+                        // TODO: 16/8/3 totalSize需要修改
+                        SQLiteUtils.update(mContext, id, OkDownloadManager.STATUS_RUNNING, 0);
                         FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream());
                     }
                 });

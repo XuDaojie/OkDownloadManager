@@ -19,12 +19,16 @@ public class SQLiteUtils {
     public static SQLiteDatabase getDatabase(Context context) {
         if (sDatabase == null) {
             sDatabase = SQLiteDatabase.openOrCreateDatabase(
-                    context.getFilesDir() + "/download.db", null);
-            return sDatabase;
+                    context.getFilesDir() + "/" + DATABASE_NAME, null);
         } else if (!sDatabase.isOpen()) {
-            sDatabase = SQLiteDatabase.openDatabase(context.getFilesDir() + "download.db", null,
+            sDatabase = SQLiteDatabase.openDatabase(context.getFilesDir() + "/" + DATABASE_NAME, null,
                     SQLiteDatabase.OPEN_READWRITE);
         }
+
+        if (!tableExist(sDatabase)) {
+            createTable(sDatabase);
+        }
+
         return sDatabase;
     }
 
@@ -34,13 +38,19 @@ public class SQLiteUtils {
     public static boolean tableExist(SQLiteDatabase db) {
         // 查询表是否存在
         String sql = "select count(*) " +
-                "from sqlite_master where type='table' and name = '" + TABLE_NAME +"'";
+                "from sqlite_master where type='table' and name = '" + TABLE_NAME + "'";
         Cursor cursor = db.rawQuery(sql, null);
+        boolean exist = false;
 
-        return cursor.getInt(0) == 0;
+        // 游标从-1开始
+        cursor.moveToFirst();
+        exist = cursor.getInt(0) != 0;
+
+        return exist;
     }
 
     public static void createTable(SQLiteDatabase db) {
+
         String sql = "CREATE TABLE " + TABLE_NAME + "(\n" +
                 "       allow_write Boolean,\n" +
                 "       id integer NOT NULL,\n" +
@@ -62,10 +72,19 @@ public class SQLiteUtils {
 
     public static void insert(SQLiteDatabase db,
                               long id, boolean allowWrite, long timeline,
-                              String localUri, String mediaType, String imediaProviderUri,
+                              String localUri, String mediaType, String mediaProviderUri,
                               String reason, int status, String title,
                               long totalSizeBytes, String uri) {
-        db.execSQL("INSERT INTO " + TABLE_NAME + " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+        String localFileName = localUri;
+        int allowWriteInt = 1;
+        if (!allowWrite) allowWriteInt = 0;
+        Object[] bindArags = new Object[]{
+                allowWriteInt, id, timeline,
+                localFileName, localUri, mediaType, mediaProviderUri, reason,
+                status, title, totalSizeBytes, uri};
+        db.execSQL("INSERT INTO " + TABLE_NAME +
+                " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", bindArags);
     }
 
     public static void insert(SQLiteDatabase db, long id, String localUri, String title) {
@@ -74,14 +93,25 @@ public class SQLiteUtils {
                 null, OkDownloadManager.STATUS_PENDING, title, 0, null);
     }
 
+    public static void insert(Context context, long id, String localUri, String title) {
+        SQLiteDatabase db = getDatabase(context);
+
+        insert(db, id, localUri, title);
+    }
+
     public static void update(SQLiteDatabase db, long id, int status, long totalSizeBytes) {
-        String sql = "UPDATE " + TABLE_NAME +"\n" +
+        String sql = "UPDATE " + TABLE_NAME + "\n" +
                 "SET status = ?,\n" +
                 " total_size_bytes = ?\n" +
                 "WHERE\n" +
                 "    id = ?";
-        Object[] args = new Object[] {status, totalSizeBytes, id};
+        Object[] args = new Object[]{status, totalSizeBytes, id};
         db.execSQL(sql, args);
+    }
+
+    public static void update(Context context, long id, int status, long totalSizeBytes) {
+        SQLiteDatabase db = getDatabase(context);
+        update(db, id, status, totalSizeBytes);
     }
 
 }

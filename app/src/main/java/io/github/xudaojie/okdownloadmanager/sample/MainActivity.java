@@ -37,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
                     if (ActivityCompat.shouldShowRequestPermissionRationale(
                             mContext,
                             Manifest.permission.WRITE_EXTERNAL_STORAGE))  {
-                        Toast.makeText(mContext, "请在设置中打开文件读写权限", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(mContext, "请在设置中打开权限", Toast.LENGTH_SHORT).show();
                     } else {
                         ActivityCompat.requestPermissions(mContext,
                                 new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE},
