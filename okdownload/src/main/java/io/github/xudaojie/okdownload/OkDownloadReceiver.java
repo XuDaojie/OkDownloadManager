@@ -22,8 +22,6 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 
     private static final String TAG = "OkDownloadReceiver";
 
-    private SQLiteHelper mSQLiteHelper;
-
     /**
      * 消息被点击 todo 下载完成后点击、下载中点击
      */
@@ -31,7 +29,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        mSQLiteHelper = SQLiteHelper.getInstance(context);
+        SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(context);
 
         int percent = intent.getIntExtra("percent", 0);
         int id = intent.getIntExtra("id", 0);
@@ -50,8 +48,8 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 //                .setContentIntent(pendingIntent)
                     .build();
 
-            if (mSQLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
-                mSQLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, totalSizeBytes);
+            if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
+                sqLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, totalSizeBytes);
             }
         } else {
             Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
@@ -71,7 +69,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
             File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
             currentFile.renameTo(new File(filePath));
 
-            mSQLiteHelper.update(id, OkDownloadManager.STATUS_SUCCESSFUL, totalSizeBytes);
+            sqLiteHelper.update(id, OkDownloadManager.STATUS_SUCCESSFUL, totalSizeBytes);
 
             FileUtils.installApk(context, filePath);
         }

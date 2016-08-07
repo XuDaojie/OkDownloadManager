@@ -89,6 +89,15 @@ public class OkDownloadManager extends Service {
 
     private SQLiteHelper mSQLiteHelper;
 
+    public static void download(Context context, String title, String url, String fileName) {
+        Intent i = new Intent(context, OkDownloadManager.class);
+        i.putExtra("id", (int) System.currentTimeMillis());
+        i.putExtra("url", url);
+        i.putExtra("title", title);
+        i.putExtra("file_name", fileName);
+        context.startService(i);
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -133,7 +142,7 @@ public class OkDownloadManager extends Service {
                                                 if (tagMap != null && tagMap.get("id") != null) {
                                                     id = (int) tagMap.get("id");
                                                     title = (String) tagMap.get("title");
-                                                    filePath = (String) tagMap.get("filePath");
+                                                    filePath = (String) tagMap.get("file_path");
                                                 }
 
                                                 Intent i = new Intent();
@@ -171,7 +180,7 @@ public class OkDownloadManager extends Service {
             int id = intent.getIntExtra("id", 0);
             String url = intent.getStringExtra("url");
             String title = intent.getStringExtra("title");
-            String fileName = intent.getStringExtra("fileName");
+            String fileName = intent.getStringExtra("file_name");
             String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
 
             filePath = FileUtils.checkOrCreateFileName(filePath, 0);
@@ -248,7 +257,7 @@ public class OkDownloadManager extends Service {
         tags.put("origin_tag", request.tag());
         tags.put("id", id);
         tags.put("title", title);
-        tags.put("filePath", filePath);
+        tags.put("file_path", filePath);
         request = request.newBuilder()
                 .tag(tags)
                 .build();

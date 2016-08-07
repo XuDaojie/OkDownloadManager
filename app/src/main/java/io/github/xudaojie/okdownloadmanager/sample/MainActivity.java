@@ -2,7 +2,6 @@ package io.github.xudaojie.okdownloadmanager.sample;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
@@ -49,12 +48,7 @@ public class MainActivity extends AppCompatActivity {
                     // 33M
 //                    String url = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
 
-                    Intent i = new Intent(mContext, OkDownloadManager.class);
-                    i.putExtra("id", (int) System.currentTimeMillis());
-                    i.putExtra("url", url);
-                    i.putExtra("title", "TestDownload");
-                    i.putExtra("fileName", "test.apk");
-                    startService(i);
+                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
                 }
 
             }
