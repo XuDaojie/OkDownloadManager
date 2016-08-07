@@ -12,12 +12,17 @@ import android.util.Log;
 import java.io.File;
 
 import io.github.xudaojie.okdownload.util.FileUtils;
+import io.github.xudaojie.okdownload.util.SQLiteHelper;
 
 /**
  * Created by xdj on 16/7/26.
  */
 
 public class OkDownloadReceiver extends BroadcastReceiver {
+
+    private static final String TAG = "OkDownloadReceiver";
+
+    private SQLiteHelper mSQLiteHelper;
 
     /**
      * 消息被点击 todo 下载完成后点击、下载中点击
@@ -26,11 +31,14 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        mSQLiteHelper = SQLiteHelper.getInstance(context);
+
         int percent = intent.getIntExtra("percent", 0);
         int id = intent.getIntExtra("id", 0);
         String title = intent.getStringExtra("title");
-        String filePath = intent.getStringExtra("filePath");
-        Log.d("OkHttpReceiver", percent + "%");
+        String filePath = intent.getStringExtra("file_path");
+        long totalSizeBytes = intent.getLongExtra("total_size_bytes", 0);
+        Log.d(TAG, percent + "%");
 
         Notification notification;
         if (percent != 100) {
@@ -41,6 +49,10 @@ public class OkDownloadReceiver extends BroadcastReceiver {
                     .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
 //                .setContentIntent(pendingIntent)
                     .build();
+
+            if (mSQLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
+                mSQLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, totalSizeBytes);
+            }
         } else {
             Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
             receiverIntent.setAction(NOTIFICATION_CLICKED);
@@ -58,6 +70,8 @@ public class OkDownloadReceiver extends BroadcastReceiver {
             // 修改文件名为正确文件名
             File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
             currentFile.renameTo(new File(filePath));
+
+            mSQLiteHelper.update(id, OkDownloadManager.STATUS_SUCCESSFUL, totalSizeBytes);
 
             FileUtils.installApk(context, filePath);
         }

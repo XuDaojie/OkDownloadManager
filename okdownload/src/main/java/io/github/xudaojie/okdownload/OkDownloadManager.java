@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.github.xudaojie.okdownload.util.FileUtils;
-import io.github.xudaojie.okdownload.util.SQLiteUtils;
+import io.github.xudaojie.okdownload.util.SQLiteHelper;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Interceptor;
@@ -33,6 +33,8 @@ import okhttp3.Response;
 public class OkDownloadManager extends Service {
 
     public static final String TEMP_SUFFIX = ".t"; // 中间文件后缀
+    public static final String FILE_NAME = "file_name";
+    public static final String URL = "url";
 
     public static final String ACTION_DOWNLOAD_COMPLETE = "android.intent.action.DOWNLOAD_COMPLETE";
     public static final String ACTION_NOTIFICATION_CLICKED = "android.intent.action.DOWNLOAD_NOTIFICATION_CLICKED";
@@ -85,6 +87,8 @@ public class OkDownloadManager extends Service {
     private String mUrl; // 正在进行下载的链接
     private int mPercent; // 正在进行下载的进度
 
+    private SQLiteHelper mSQLiteHelper;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -119,11 +123,11 @@ public class OkDownloadManager extends Service {
 
                                                 mTimeline = currentTimeline;
                                                 mPercent = percent;
-
+                                                Log.d(TAG, percent + "%");
                                                 if (done) {
                                                     mUrl = null;
                                                     mPercent = -1;
-                                                    SQLiteUtils.update(mContext, id, STATUS_SUCCESSFUL, contentLength);
+                                                    Log.d(TAG, "download done; url: " + mUrl);
                                                 }
 
                                                 if (tagMap != null && tagMap.get("id") != null) {
@@ -138,7 +142,8 @@ public class OkDownloadManager extends Service {
                                                 i.putExtra("url", url);
                                                 i.putExtra("id", id);
                                                 i.putExtra("title", title);
-                                                i.putExtra("filePath", filePath);
+                                                i.putExtra("file_path", filePath);
+                                                i.putExtra("total_size_bytes", contentLength);
 
                                                 // 必须也使用LocalBroadcastReceiver进行注册才能接收
                                                 mBroadcastManager.sendBroadcast(i);
@@ -199,6 +204,9 @@ public class OkDownloadManager extends Service {
     public void onDestroy() {
         Log.d("Service", "onDestroy");
         super.onDestroy();
+        if (mSQLiteHelper != null) {
+            mSQLiteHelper.close();
+        }
     }
 
     public void download(final int id, String url, final String title, final String filePath) {
@@ -229,7 +237,8 @@ public class OkDownloadManager extends Service {
         NotificationManager manager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify(id, notification);
 
-        SQLiteUtils.insert(mContext, id, filePath, title);
+        mSQLiteHelper = SQLiteHelper.getInstance(mContext);
+        mSQLiteHelper.insert(id, filePath, title);
 
         Request request = new Request.Builder()
                 .url(url)
@@ -248,18 +257,17 @@ public class OkDownloadManager extends Service {
                 .enqueue(new Callback() {
                     @Override
                     public void onFailure(Call call, IOException e) {
-                        SQLiteUtils.update(mContext, id, OkDownloadManager.STATUS_FAILED, 0);
+                        mSQLiteHelper.update(id, OkDownloadManager.STATUS_FAILED, 0);
                     }
 
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
+                        Log.d(TAG, "onResponse");
                         // TODO: 16/8/3 totalSize需要修改
-                        SQLiteUtils.update(mContext, id, OkDownloadManager.STATUS_RUNNING, 0);
+//                        mSQLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, 1024);
                         FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream());
                     }
                 });
     }
-
-
 
 }
