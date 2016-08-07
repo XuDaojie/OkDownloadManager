@@ -34,7 +34,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
         int percent = intent.getIntExtra("percent", 0);
         int id = intent.getIntExtra("id", 0);
         String title = intent.getStringExtra("title");
-        String filePath = intent.getStringExtra("file_path");
+        String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
         long totalSizeBytes = intent.getLongExtra("total_size_bytes", 0);
         Log.d(TAG, percent + "%");
 
@@ -54,7 +54,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
         } else {
             Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
             receiverIntent.setAction(NOTIFICATION_CLICKED);
-            receiverIntent.putExtras(intent);
+            receiverIntent.putExtras(intent.getExtras());
             PendingIntent pendingIntent = PendingIntent
                     .getBroadcast(context, 0, receiverIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 

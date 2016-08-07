@@ -142,7 +142,7 @@ public class OkDownloadManager extends Service {
                                                 if (tagMap != null && tagMap.get("id") != null) {
                                                     id = (int) tagMap.get("id");
                                                     title = (String) tagMap.get("title");
-                                                    filePath = (String) tagMap.get("file_path");
+                                                    filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
                                                 }
 
                                                 Intent i = new Intent();
@@ -151,7 +151,7 @@ public class OkDownloadManager extends Service {
                                                 i.putExtra("url", url);
                                                 i.putExtra("id", id);
                                                 i.putExtra("title", title);
-                                                i.putExtra("file_path", filePath);
+                                                i.putExtra(OkDownloadManager.COLUMN_LOCAL_URI, filePath);
                                                 i.putExtra("total_size_bytes", contentLength);
 
                                                 // 必须也使用LocalBroadcastReceiver进行注册才能接收
@@ -257,7 +257,7 @@ public class OkDownloadManager extends Service {
         tags.put("origin_tag", request.tag());
         tags.put("id", id);
         tags.put("title", title);
-        tags.put("file_path", filePath);
+        tags.put(OkDownloadManager.COLUMN_LOCAL_URI, filePath);
         request = request.newBuilder()
                 .tag(tags)
                 .build();
