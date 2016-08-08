@@ -1,8 +1,6 @@
 package io.github.xudaojie.okdownload;
 
-import android.app.Notification;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -10,7 +8,6 @@ import android.content.IntentFilter;
 import android.os.Environment;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
-import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -19,6 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.github.xudaojie.okdownload.util.FileUtils;
+import io.github.xudaojie.okdownload.util.NotificationUtils;
 import io.github.xudaojie.okdownload.util.SQLiteHelper;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -212,43 +210,28 @@ public class OkDownloadManager extends Service {
     public void onDestroy() {
         Log.d("Service", "onDestroy");
         super.onDestroy();
+        mSQLiteHelper = SQLiteHelper.getInstance(this);
         if (mSQLiteHelper != null) {
+            // 将所有在下载的状态改为暂停
+            mSQLiteHelper.updateAllRunToPause();
             mSQLiteHelper.close();
         }
     }
 
     public void download(final int id, String url, final String title, final String filePath) {
-        if (mUrl != null) {
-            mSQLiteHelper.insert(id, url, title, OkDownloadManager.STATUS_PENDING);
+        mSQLiteHelper = SQLiteHelper.getInstance(mContext);
+
+        if (mSQLiteHelper.getDownloadCount() >= 1) {
+            NotificationUtils.showPending(mContext, title, id);
+            mSQLiteHelper.insert(id, url, filePath, title, OkDownloadManager.STATUS_PENDING);
             Log.d(TAG, "同时只能进行一个下载");
             return;
         }
 
         mUrl = url;
 
-        // todo 未完成时点击需暂停下载
-        Intent i = new Intent(mContext, NotificationClickReceiver.class);
-        i.setAction(ACTION_NOTIFICATION_CLICKED);
-        i.putExtra(COLUMN_ID, id);
-//        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, i, PendingIntent.FLAG_UPDATE_CURRENT);
-        // 广播必须在Manifest里注册,代码注册无效
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(mContext, 0, i, PendingIntent.FLAG_ONE_SHOT);
-
-        // Notification.Builder.build() 在Api16中才开始支持
-        Notification notification = new NotificationCompat.Builder(mContext)
-                .setContentTitle(title)
-                .setContentText("")
-                .setProgress(100, 0, true)
-                .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
-                .setContentIntent(pendingIntent) // 指定点击事件对应的pendingIntent
-//                .addAction(android.R.mipmap.sym_def_app_icon, "确定", pendingIntent)
-                .build();
-
-        NotificationManager manager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(id, notification);
-
-        mSQLiteHelper = SQLiteHelper.getInstance(mContext);
-        mSQLiteHelper.insert(id, filePath, title);
+        NotificationUtils.showPending(mContext, title, id);
+        mSQLiteHelper.insert(id, url, filePath, title);
 
         Request request = new Request.Builder()
                 .url(url)
@@ -277,5 +260,7 @@ public class OkDownloadManager extends Service {
                     }
                 });
     }
+
+
 
 }

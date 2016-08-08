@@ -115,10 +115,10 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     }
 
     public void insert(SQLiteDatabase db,
-                              long id, boolean allowWrite, long timeline,
-                              String localUri, String mediaType, String mediaProviderUri,
-                              String reason, int status, String title,
-                              long totalSizeBytes, String uri) {
+                       long id, boolean allowWrite, long timeline,
+                       String localUri, String mediaType, String mediaProviderUri,
+                       String reason, int status, String title,
+                       long totalSizeBytes, String uri) {
         try {
             String localFileName = localUri;
             int allowWriteInt = 1;
@@ -135,31 +135,31 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
     }
 
-    public void insert(SQLiteDatabase db, long id, String localUri, String title) {
+    public void insert(SQLiteDatabase db, long id, String url, String localUri, String title) {
         insert(db, id, true, System.currentTimeMillis(),
                 localUri, null, null,
-                null, OkDownloadManager.STATUS_PENDING, title, 0, null);
+                null, OkDownloadManager.STATUS_PENDING, title, 0, url);
     }
 
-    public void insert(long id, String localUri, String title, int status) {
+    public void insert(long id, String uri, String localUri, String title, int status) {
         SQLiteDatabase db = getWritableDatabase();
 
         insert(db, id, true, System.currentTimeMillis(),
                 localUri, null, null,
-                null, status, title, 0, null);
+                null, status, title, 0, uri);
     }
 
-    public void insert(long id, String localUri, String title) {
+    public void insert(long id, String url, String localUri, String title) {
         SQLiteDatabase db = getWritableDatabase();
 
-        insert(db, id, localUri, title);
+        insert(db, id, url, localUri, title);
     }
 
     public void update(long id, int status, long totalSizeBytes) {
         SQLiteDatabase db = getWritableDatabase();
         db.beginTransaction();
         try {
-            Log.v(TAG,"locked:" + db.isDbLockedByCurrentThread());
+            Log.v(TAG, "locked:" + db.isDbLockedByCurrentThread());
 
             String sql = "UPDATE " + TABLE_NAME + "\n" +
                     "SET status = ?,\n" +
@@ -184,15 +184,41 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         }
     }
 
+    public void updateAllRunToPause() {
+        Log.d(TAG, "updateAllRunToPause");
+        String sql = "update " + TABLE_NAME + "\n" +
+                "set status = ?\n" +
+                "where status = ?";
+
+        SQLiteDatabase db = getWritableDatabase();
+        db.execSQL(sql, new Object[]{OkDownloadManager.STATUS_PAUSED,
+                OkDownloadManager.STATUS_RUNNING});
+    }
+
     public int getStatus(long id) {
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.rawQuery("select " + OkDownloadManager.COLUMN_STATUS + " from " + TABLE_NAME + " where id = ?",
-                new String[] {id + ""});
+                new String[]{id + ""});
         if (cursor.getCount() != 0) {
             cursor.moveToFirst();
             return cursor.getInt(0);
         }
         return OkDownloadManager.STATUS_PENDING;
+    }
+
+    /**
+     * 当前正在下载的任务数
+     *
+     * @return
+     */
+    public int getDownloadCount() {
+        String sql = "select count(*) from " + TABLE_NAME + "" +
+                " where status = " + OkDownloadManager.STATUS_RUNNING;
+
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.rawQuery(sql, null);
+        cursor.moveToFirst();
+        return cursor.getInt(0);
     }
 
 }
