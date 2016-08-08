@@ -33,20 +33,22 @@ import okhttp3.Response;
 public class OkDownloadManager extends Service {
 
     public static final String TEMP_SUFFIX = ".t"; // 中间文件后缀
-    public static final String FILE_NAME = "file_name";
-    public static final String URL = "url";
+    public static final String FILENAME = "filename"; // 文件名
+    public static final String ORIGIN_TAG = "origin_tag";
+    public static final String DOWNLOAD_PERCENT = "download_percent";
 
+    public static final String ACTION_DOWNLOAD = "android.intent.action.DOWNLOAD"; // 正在下载
     public static final String ACTION_DOWNLOAD_COMPLETE = "android.intent.action.DOWNLOAD_COMPLETE";
     public static final String ACTION_NOTIFICATION_CLICKED = "android.intent.action.DOWNLOAD_NOTIFICATION_CLICKED";
-    public static final String ACTION_VIEW_DOWNLOADS = "android.intent.action.VIEW_DOWNLOADS";
+//    public static final String ACTION_VIEW_DOWNLOADS = "android.intent.action.VIEW_DOWNLOADS"; // 获取下载历史
     public static final String COLUMN_BYTES_DOWNLOADED_SO_FAR = "bytes_so_far";
     public static final String COLUMN_DESCRIPTION = "description";
     public static final String COLUMN_ID = "_id";
     public static final String COLUMN_LAST_MODIFIED_TIMESTAMP = "last_modified_timestamp";
     /** @deprecated */
     @Deprecated
-    public static final String COLUMN_LOCAL_FILENAME = "local_filename";
-    public static final String COLUMN_LOCAL_URI = "local_uri";
+    public static final String COLUMN_LOCAL_FILENAME = "local_filename"; // 本地文件路径
+    public static final String COLUMN_LOCAL_URI = "local_uri"; // 本地文件路径
     public static final String COLUMN_MEDIAPROVIDER_URI = "mediaprovider_uri";
     public static final String COLUMN_MEDIA_TYPE = "media_type";
     public static final String COLUMN_REASON = "reason";
@@ -91,10 +93,10 @@ public class OkDownloadManager extends Service {
 
     public static void download(Context context, String title, String url, String fileName) {
         Intent i = new Intent(context, OkDownloadManager.class);
-        i.putExtra("id", (int) System.currentTimeMillis());
-        i.putExtra("url", url);
-        i.putExtra("title", title);
-        i.putExtra("file_name", fileName);
+        i.putExtra(COLUMN_ID, (int) System.currentTimeMillis());
+        i.putExtra(COLUMN_URI, url);
+        i.putExtra(COLUMN_TITLE, title);
+        i.putExtra(FILENAME, fileName);
         context.startService(i);
     }
 
@@ -105,9 +107,6 @@ public class OkDownloadManager extends Service {
         Log.d("Service", "onCreate");
 
         if (mHttpClient == null) {
-//            mHttpClient = new OkHttpClient();
-//            mHttpClient.networkInterceptors()
-
             mHttpClient = new OkHttpClient.Builder()
                     .addInterceptor(new Interceptor() {
                         @Override
@@ -139,20 +138,20 @@ public class OkDownloadManager extends Service {
                                                     Log.d(TAG, "download done; url: " + mUrl);
                                                 }
 
-                                                if (tagMap != null && tagMap.get("id") != null) {
-                                                    id = (int) tagMap.get("id");
-                                                    title = (String) tagMap.get("title");
+                                                if (tagMap != null && tagMap.get(COLUMN_ID) != null) {
+                                                    id = (int) tagMap.get(COLUMN_ID);
+                                                    title = (String) tagMap.get(COLUMN_TITLE);
                                                     filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
                                                 }
 
                                                 Intent i = new Intent();
-                                                i.setAction("ok_http_download");
-                                                i.putExtra("percent", percent);
-                                                i.putExtra("url", url);
-                                                i.putExtra("id", id);
-                                                i.putExtra("title", title);
-                                                i.putExtra(OkDownloadManager.COLUMN_LOCAL_URI, filePath);
-                                                i.putExtra("total_size_bytes", contentLength);
+                                                i.setAction(ACTION_DOWNLOAD);
+                                                i.putExtra(DOWNLOAD_PERCENT, percent);
+                                                i.putExtra(COLUMN_URI, url);
+                                                i.putExtra(COLUMN_ID, id);
+                                                i.putExtra(COLUMN_TITLE, title);
+                                                i.putExtra(COLUMN_LOCAL_URI, filePath);
+                                                i.putExtra(COLUMN_TOTAL_SIZE_BYTES, contentLength);
 
                                                 // 必须也使用LocalBroadcastReceiver进行注册才能接收
                                                 mBroadcastManager.sendBroadcast(i);
@@ -168,7 +167,7 @@ public class OkDownloadManager extends Service {
 
             OkDownloadReceiver okHttpReceiver = new OkDownloadReceiver();
             IntentFilter filter = new IntentFilter();
-            filter.addAction("ok_http_download");
+            filter.addAction(ACTION_DOWNLOAD);
             mBroadcastManager.registerReceiver(okHttpReceiver, filter);
         }
     }
@@ -176,11 +175,11 @@ public class OkDownloadManager extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("Service", "onStartCommand");
-        if (intent != null && intent.hasExtra("id") && intent.hasExtra("url")) {
-            int id = intent.getIntExtra("id", 0);
-            String url = intent.getStringExtra("url");
-            String title = intent.getStringExtra("title");
-            String fileName = intent.getStringExtra("file_name");
+        if (intent != null && intent.hasExtra(COLUMN_ID) && intent.hasExtra(COLUMN_URI)) {
+            String fileName = intent.getStringExtra(FILENAME);
+            int id = intent.getIntExtra(COLUMN_ID, 0);
+            String url = intent.getStringExtra(COLUMN_URI);
+            String title = intent.getStringExtra(COLUMN_TITLE);
             String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
 
             filePath = FileUtils.checkOrCreateFileName(filePath, 0);
@@ -220,15 +219,17 @@ public class OkDownloadManager extends Service {
 
     public void download(final int id, String url, final String title, final String filePath) {
         if (mUrl != null) {
+            mSQLiteHelper.insert(id, url, title, OkDownloadManager.STATUS_PENDING);
             Log.d(TAG, "同时只能进行一个下载");
             return;
         }
 
         mUrl = url;
 
+        // todo 未完成时点击需暂停下载
         Intent i = new Intent(mContext, NotificationClickReceiver.class);
-        i.setAction("notification_clicked");
-        i.putExtra("type", id);
+        i.setAction(ACTION_NOTIFICATION_CLICKED);
+        i.putExtra(COLUMN_ID, id);
 //        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, i, PendingIntent.FLAG_UPDATE_CURRENT);
         // 广播必须在Manifest里注册,代码注册无效
         PendingIntent pendingIntent = PendingIntent.getBroadcast(mContext, 0, i, PendingIntent.FLAG_ONE_SHOT);
@@ -254,10 +255,10 @@ public class OkDownloadManager extends Service {
                 .get()
                 .build();
         Map<String, Object> tags = new HashMap<>();
-        tags.put("origin_tag", request.tag());
-        tags.put("id", id);
-        tags.put("title", title);
-        tags.put(OkDownloadManager.COLUMN_LOCAL_URI, filePath);
+        tags.put(ORIGIN_TAG, request.tag());
+        tags.put(COLUMN_ID, id);
+        tags.put(COLUMN_TITLE, title);
+        tags.put(COLUMN_LOCAL_URI, filePath);
         request = request.newBuilder()
                 .tag(tags)
                 .build();
@@ -272,8 +273,6 @@ public class OkDownloadManager extends Service {
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
                         Log.d(TAG, "onResponse");
-                        // TODO: 16/8/3 totalSize需要修改
-//                        mSQLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, 1024);
                         FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream());
                     }
                 });

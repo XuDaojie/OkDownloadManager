@@ -105,6 +105,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
                 "       reason varchar,\n" +
                 "       status integer,\n" +
                 "       title varchar,\n" +
+                "       current_size_bytes integer,\n" +
                 "       total_size_bytes integer,\n" +
                 "       uri varchar,\n" +
                 "       PRIMARY KEY(id)\n" +
@@ -138,6 +139,14 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         insert(db, id, true, System.currentTimeMillis(),
                 localUri, null, null,
                 null, OkDownloadManager.STATUS_PENDING, title, 0, null);
+    }
+
+    public void insert(long id, String localUri, String title, int status) {
+        SQLiteDatabase db = getWritableDatabase();
+
+        insert(db, id, true, System.currentTimeMillis(),
+                localUri, null, null,
+                null, status, title, 0, null);
     }
 
     public void insert(long id, String localUri, String title) {

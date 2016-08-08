@@ -25,17 +25,17 @@ public class OkDownloadReceiver extends BroadcastReceiver {
     /**
      * 消息被点击 todo 下载完成后点击、下载中点击
      */
-    public static final String NOTIFICATION_CLICKED = "android.intent.action.DOWNLOAD_NOTIFICATION_CLICKED";
+//    public static final String NOTIFICATION_CLICKED = "android.intent.action.DOWNLOAD_NOTIFICATION_CLICKED";
 
     @Override
     public void onReceive(Context context, Intent intent) {
         SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(context);
 
-        int percent = intent.getIntExtra("percent", 0);
-        int id = intent.getIntExtra("id", 0);
-        String title = intent.getStringExtra("title");
+        int percent = intent.getIntExtra(OkDownloadManager.DOWNLOAD_PERCENT, 0);
+        int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
+        String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
         String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
-        long totalSizeBytes = intent.getLongExtra("total_size_bytes", 0);
+        long totalSizeBytes = intent.getLongExtra(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, 0);
         Log.d(TAG, percent + "%");
 
         Notification notification;
@@ -53,7 +53,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
             }
         } else {
             Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
-            receiverIntent.setAction(NOTIFICATION_CLICKED);
+            receiverIntent.setAction(OkDownloadManager.ACTION_NOTIFICATION_CLICKED);
             receiverIntent.putExtras(intent.getExtras());
             PendingIntent pendingIntent = PendingIntent
                     .getBroadcast(context, 0, receiverIntent, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -70,7 +70,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
             currentFile.renameTo(new File(filePath));
 
             sqLiteHelper.update(id, OkDownloadManager.STATUS_SUCCESSFUL, totalSizeBytes);
-
+            // TODO: 16/8/8 继续下一个下载
             FileUtils.installApk(context, filePath);
         }
 //        notification.flags = Notification.FLAG_AUTO_CANCEL;

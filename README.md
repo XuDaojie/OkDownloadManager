@@ -28,3 +28,4 @@ dependencies {
 
 ## TODO
 断点续传
+更新检查策略
