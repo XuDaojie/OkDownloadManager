@@ -4,12 +4,7 @@ OkDownloadManager
 
 ## Using
 ```xml
-Intent i = new Intent(mContext, OkDownloadManager.class);
-i.putExtra("id", (int) System.currentTimeMillis());
-i.putExtra("url", url);
-i.putExtra("title", "TestDownload");
-i.putExtra("fileName", "test.apk");
-startService(i);
+OkDownloadManager.download(mContext, "title", url, "test.apk");
 ```
 
 ## Including in your project
@@ -27,7 +22,7 @@ allprojects {
 ### Add dependency
 ```groovy
 dependencies {
-    compile 'com.github.XuDaojie:OkDownloadManager:v0.1.0'
+    compile 'com.github.XuDaojie:OkDownloadManager:v0.2.0'
 }
 ```
 
