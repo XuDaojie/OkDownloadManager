@@ -118,7 +118,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
                        long id, boolean allowWrite, long timeline,
                        String localUri, String mediaType, String mediaProviderUri,
                        String reason, int status, String title,
-                       long totalSizeBytes, String uri) {
+                       long currentSizeBytes, long totalSizeBytes, String uri) {
         try {
             String localFileName = localUri;
             int allowWriteInt = 1;
@@ -126,9 +126,9 @@ public class SQLiteHelper extends SQLiteOpenHelper {
             Object[] bindArags = new Object[]{
                     allowWriteInt, id, timeline,
                     localFileName, localUri, mediaType, mediaProviderUri, reason,
-                    status, title, totalSizeBytes, uri};
+                    status, title, currentSizeBytes, totalSizeBytes, uri};
             db.execSQL("INSERT INTO " + TABLE_NAME +
-                    " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", bindArags);
+                    " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", bindArags);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -138,7 +138,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     public void insert(SQLiteDatabase db, long id, String url, String localUri, String title) {
         insert(db, id, true, System.currentTimeMillis(),
                 localUri, null, null,
-                null, OkDownloadManager.STATUS_PENDING, title, 0, url);
+                null, OkDownloadManager.STATUS_PENDING, title, 0, 0, url);
     }
 
     public void insert(long id, String uri, String localUri, String title, int status) {
@@ -146,7 +146,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
         insert(db, id, true, System.currentTimeMillis(),
                 localUri, null, null,
-                null, status, title, 0, uri);
+                null, status, title, 0, 0, uri);
     }
 
     public void insert(long id, String url, String localUri, String title) {
@@ -219,6 +219,18 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         Cursor cursor = db.rawQuery(sql, null);
         cursor.moveToFirst();
         return cursor.getInt(0);
+    }
+
+    /**
+     * 获得所有状态为暂停的任务id
+     * @return
+     */
+    public Cursor getPauseCursor() {
+        String sql = "select id, title, uri, local_uri from " + TABLE_NAME +
+                " where status = " + OkDownloadManager.STATUS_PAUSED;
+
+        SQLiteDatabase db = getReadableDatabase();
+        return db.rawQuery(sql, null);
     }
 
 }

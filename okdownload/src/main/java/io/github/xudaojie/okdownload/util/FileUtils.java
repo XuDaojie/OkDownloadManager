@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 
 /**
  * Created by xdj on 16/8/1.
@@ -55,6 +56,33 @@ public class FileUtils {
         } finally {
             fos.flush();
             fos.close();
+            stream.close();
+        }
+
+    }
+
+    /**
+     * 从文件的指定位置开始保存
+     * @param outPath
+     * @param stream
+     * @param pos
+     * @throws IOException
+     */
+    public static void save(String outPath, InputStream stream, long pos) throws IOException {
+        int len;
+
+        File file = new File(outPath);
+        RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+        randomAccessFile.seek(pos);
+
+        byte[] buf = new byte[1024];
+
+        try {
+            while ((len = stream.read(buf)) != -1) {
+                randomAccessFile.write(buf, 0, len);
+            }
+        } finally {
+            randomAccessFile.close();
             stream.close();
         }
     }

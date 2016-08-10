@@ -5,12 +5,14 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.database.Cursor;
 import android.os.Environment;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -103,6 +105,7 @@ public class OkDownloadManager extends Service {
         super.onCreate();
         mContext = this;
         Log.d("Service", "onCreate");
+        mSQLiteHelper = SQLiteHelper.getInstance(mContext);
 
         if (mHttpClient == null) {
             mHttpClient = new OkHttpClient.Builder()
@@ -173,6 +176,24 @@ public class OkDownloadManager extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("Service", "onStartCommand");
+
+        // TODO: 16/8/10 检查当前未下载完成的链接
+        Cursor cursor = mSQLiteHelper.getPauseCursor();
+        while (cursor.moveToNext()) {
+            int id = cursor.getInt(0);
+            String title = cursor.getString(1);
+            String uri = cursor.getString(2);
+            String localUri = cursor.getString(3);
+            Log.d(TAG, "Title " + title + " Uri " + uri + " localUri " + localUri);
+
+            File file = new File(localUri + TEMP_SUFFIX);
+
+            download(id, uri, title, localUri, file.length());
+
+            // TODO: 16/8/11 测试断点续传
+            return super.onStartCommand(intent, flags, startId);
+        }
+
         if (intent != null && intent.hasExtra(COLUMN_ID) && intent.hasExtra(COLUMN_URI)) {
             String fileName = intent.getStringExtra(FILENAME);
             int id = intent.getIntExtra(COLUMN_ID, 0);
@@ -182,7 +203,7 @@ public class OkDownloadManager extends Service {
 
             filePath = FileUtils.checkOrCreateFileName(filePath, 0);
 
-            download(id, url, title, filePath);
+            download(id, url, title, filePath, 0);
         } else {
             // 服务尚未停止Apk被回收,会再度启动Service
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -218,9 +239,16 @@ public class OkDownloadManager extends Service {
         }
     }
 
-    public void download(final int id, String url, final String title, final String filePath) {
-        mSQLiteHelper = SQLiteHelper.getInstance(mContext);
-
+    /**
+     *
+     * @param id
+     * @param url
+     * @param title
+     * @param filePath
+     * @param pos 从文件流的指定位置开始下载
+     */
+    public void download(final int id, String url, final String title, final String filePath,
+                         final long pos) {
         if (mSQLiteHelper.getDownloadCount() >= 1) {
             NotificationUtils.showPending(mContext, title, id);
             mSQLiteHelper.insert(id, url, filePath, title, OkDownloadManager.STATUS_PENDING);
@@ -231,9 +259,12 @@ public class OkDownloadManager extends Service {
         mUrl = url;
 
         NotificationUtils.showPending(mContext, title, id);
-        mSQLiteHelper.insert(id, url, filePath, title);
+        if (pos == 0) {
+            mSQLiteHelper.insert(id, url, filePath, title);
+        }
 
         Request request = new Request.Builder()
+                .addHeader("Range", "bytes=" + pos + "-")
                 .url(url)
                 .get()
                 .build();
@@ -256,7 +287,7 @@ public class OkDownloadManager extends Service {
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
                         Log.d(TAG, "onResponse");
-                        FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream());
+                        FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream(), pos);
                     }
                 });
     }
