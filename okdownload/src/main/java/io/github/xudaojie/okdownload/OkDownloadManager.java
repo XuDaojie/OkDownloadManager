@@ -36,16 +36,23 @@ public class OkDownloadManager extends Service {
     public static final String FILENAME = "filename"; // 文件名
     public static final String ORIGIN_TAG = "origin_tag";
     public static final String DOWNLOAD_PERCENT = "download_percent";
+    public static final String DOWNLOAD_TYPE = "download_type"; // 继续下载还是重新下载
 
+    public static final int DOWNLOAD_TYPE_DEFAULT = 1;
+    public static final int DOWNLOAD_TYPE_CONTINUE = 2; // 继续下载(断点续传)
+
+    public static final String ACTION_DOWNLOAD_FAIL = "android.intent.action.DOWNLOAD_FAIL"; // 下载过程中出现异常
     public static final String ACTION_DOWNLOAD = "android.intent.action.DOWNLOAD"; // 正在下载
     public static final String ACTION_DOWNLOAD_COMPLETE = "android.intent.action.DOWNLOAD_COMPLETE";
     public static final String ACTION_NOTIFICATION_CLICKED = "android.intent.action.DOWNLOAD_NOTIFICATION_CLICKED";
-//    public static final String ACTION_VIEW_DOWNLOADS = "android.intent.action.VIEW_DOWNLOADS"; // 获取下载历史
+    //    public static final String ACTION_VIEW_DOWNLOADS = "android.intent.action.VIEW_DOWNLOADS"; // 获取下载历史
     public static final String COLUMN_BYTES_DOWNLOADED_SO_FAR = "bytes_so_far";
     public static final String COLUMN_DESCRIPTION = "description";
     public static final String COLUMN_ID = "_id";
     public static final String COLUMN_LAST_MODIFIED_TIMESTAMP = "last_modified_timestamp";
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     @Deprecated
     public static final String COLUMN_LOCAL_FILENAME = "local_filename"; // 本地文件路径
     public static final String COLUMN_LOCAL_URI = "local_uri"; // 本地文件路径
@@ -100,6 +107,28 @@ public class OkDownloadManager extends Service {
         context.startService(i);
     }
 
+    public static void download(Context context, int id) {
+        SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(context);
+
+        // TODO: 16/8/10 检查当前未下载完成的链接
+        Cursor cursor = sqLiteHelper.getPauseCursor();
+        cursor.moveToFirst();
+
+        String title = cursor.getString(1);
+        String uri = cursor.getString(2);
+        String localUri = cursor.getString(3);
+        Log.d(TAG, "Title " + title + " Uri " + uri + " localUri " + localUri);
+
+//            download(id, uri, title, localUri, file.length());
+        Intent i = new Intent(context, OkDownloadManager.class);
+        i.putExtra(COLUMN_ID, id);
+        i.putExtra(COLUMN_URI, uri);
+        i.putExtra(COLUMN_TITLE, title);
+        i.putExtra(COLUMN_LOCAL_URI, localUri);
+        i.putExtra(DOWNLOAD_TYPE, DOWNLOAD_TYPE_CONTINUE);
+        context.startService(i);
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -114,14 +143,14 @@ public class OkDownloadManager extends Service {
                         public Response intercept(final Interceptor.Chain chain) throws IOException {
                             final Request request = chain.request();
                             final String url = chain.request().url().toString();
-                            final Map<String, Object> tagMap = (Map<String, Object>)request.tag();
+                            final Map<String, Object> tagMap = (Map<String, Object>) request.tag();
 
                             Response response = chain.proceed(request);
                             return response.newBuilder()
                                     .body(new ProgressResponseBody(response.body(), new ProgressResponseBody.ProgressListener() {
                                         @Override
                                         public void update(long bytesRead, long contentLength, boolean done) {
-                                            int percent = (int) ((float)bytesRead / contentLength * 100);
+                                            int percent = (int) ((float) bytesRead / contentLength * 100);
                                             // 广播接收也是在主界面执行的,全部发送的话会造成系统卡顿
                                             long currentTimeline = System.currentTimeMillis();
                                             if ((currentTimeline - mTimeline > 600 && mPercent != percent)
@@ -159,16 +188,42 @@ public class OkDownloadManager extends Service {
                                             }
 
                                         }
+
+                                        @Override
+                                        public void onFailure(IOException e) {
+                                            int id = 0;
+                                            String title = "";
+                                            String filePath = "";
+
+                                            Log.d(TAG, "onFailure");
+
+                                            if (tagMap != null && tagMap.get(COLUMN_ID) != null) {
+                                                id = (int) tagMap.get(COLUMN_ID);
+                                                title = (String) tagMap.get(COLUMN_TITLE);
+                                                filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
+                                            }
+
+                                            Intent i = new Intent();
+                                            i.setAction(ACTION_DOWNLOAD_FAIL);
+                                            i.putExtra(COLUMN_URI, url);
+                                            i.putExtra(COLUMN_ID, id);
+                                            i.putExtra(COLUMN_TITLE, title);
+                                            i.putExtra(COLUMN_LOCAL_URI, filePath);
+
+                                            // 必须也使用LocalBroadcastReceiver进行注册才能接收
+                                            mBroadcastManager.sendBroadcast(i);
+                                        }
                                     }))
                                     .build();
                         }
                     })
-            .build();
+                    .build();
             mBroadcastManager = LocalBroadcastManager.getInstance(mContext);
 
             OkDownloadReceiver okHttpReceiver = new OkDownloadReceiver();
             IntentFilter filter = new IntentFilter();
             filter.addAction(ACTION_DOWNLOAD);
+            filter.addAction(ACTION_DOWNLOAD_FAIL);
             mBroadcastManager.registerReceiver(okHttpReceiver, filter);
         }
     }
@@ -177,33 +232,29 @@ public class OkDownloadManager extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("Service", "onStartCommand");
 
-        // TODO: 16/8/10 检查当前未下载完成的链接
-        Cursor cursor = mSQLiteHelper.getPauseCursor();
-        while (cursor.moveToNext()) {
-            int id = cursor.getInt(0);
-            String title = cursor.getString(1);
-            String uri = cursor.getString(2);
-            String localUri = cursor.getString(3);
-            Log.d(TAG, "Title " + title + " Uri " + uri + " localUri " + localUri);
-
-            File file = new File(localUri + TEMP_SUFFIX);
-
-            download(id, uri, title, localUri, file.length());
-
-            // TODO: 16/8/11 测试断点续传
-            return super.onStartCommand(intent, flags, startId);
-        }
-
         if (intent != null && intent.hasExtra(COLUMN_ID) && intent.hasExtra(COLUMN_URI)) {
-            String fileName = intent.getStringExtra(FILENAME);
-            int id = intent.getIntExtra(COLUMN_ID, 0);
-            String url = intent.getStringExtra(COLUMN_URI);
-            String title = intent.getStringExtra(COLUMN_TITLE);
-            String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
+            int downloadType = intent.getIntExtra(DOWNLOAD_TYPE, DOWNLOAD_TYPE_DEFAULT);
 
-            filePath = FileUtils.checkOrCreateFileName(filePath, 0);
+            if (downloadType != DOWNLOAD_TYPE_CONTINUE) {
+                String fileName = intent.getStringExtra(FILENAME);
+                int id = intent.getIntExtra(COLUMN_ID, 0);
+                String url = intent.getStringExtra(COLUMN_URI);
+                String title = intent.getStringExtra(COLUMN_TITLE);
+                String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
 
-            download(id, url, title, filePath, 0);
+                filePath = FileUtils.checkOrCreateFileName(filePath, 0);
+
+                download(id, url, title, filePath, 0);
+            } else {
+                int id = intent.getIntExtra(COLUMN_ID, 0);
+                String url = intent.getStringExtra(COLUMN_URI);
+                String title = intent.getStringExtra(COLUMN_TITLE);
+                String filePath = intent.getStringExtra(COLUMN_LOCAL_URI);
+
+                File file = new File(filePath + TEMP_SUFFIX);
+
+                download(id, url, title, filePath, file.length());
+            }
         } else {
             // 服务尚未停止Apk被回收,会再度启动Service
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -240,12 +291,11 @@ public class OkDownloadManager extends Service {
     }
 
     /**
-     *
      * @param id
      * @param url
      * @param title
      * @param filePath
-     * @param pos 从文件流的指定位置开始下载
+     * @param pos      从文件流的指定位置开始下载
      */
     public void download(final int id, String url, final String title, final String filePath,
                          final long pos) {
@@ -291,7 +341,6 @@ public class OkDownloadManager extends Service {
                     }
                 });
     }
-
 
 
 }

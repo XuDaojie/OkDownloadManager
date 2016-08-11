@@ -169,14 +169,26 @@ public class SQLiteHelper extends SQLiteOpenHelper {
             Object[] args = new Object[]{status, totalSizeBytes, id};
             db.execSQL(sql, args);
             db.setTransactionSuccessful();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            db.endTransaction();
+        }
+    }
 
-//            db.beginTransaction();
-//            ContentValues values = new ContentValues();
-//            values.put("status", status);
-//            values.put("total_size_bytes", totalSizeBytes);
-//            int number = db.update(TABLE_NAME, values, "id = ?", new String[] {id + ""});
-//            Log.d(TAG, "status:" + status + " id " + id + " number " + number);
-//            db.endTransaction();
+    public void update(long id, int status) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            Log.v(TAG, "locked:" + db.isDbLockedByCurrentThread());
+
+            String sql = "UPDATE " + TABLE_NAME + "\n" +
+                    "SET status = ?\n" +
+                    "WHERE\n" +
+                    "    id = ?";
+            Object[] args = new Object[]{status, id};
+            db.execSQL(sql, args);
+            db.setTransactionSuccessful();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

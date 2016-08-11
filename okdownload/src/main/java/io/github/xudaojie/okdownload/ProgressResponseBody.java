@@ -58,8 +58,15 @@ class ProgressResponseBody extends ResponseBody {
             long totalBytesRead = 0L;
 
             @Override
-            public long read(Buffer sink, long byteCount) throws IOException {
-                long bytesRead = super.read(sink, byteCount);
+            public long read(Buffer sink, long byteCount) {
+
+                long bytesRead = 0;
+                try {
+                    bytesRead = super.read(sink, byteCount);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    mProgressListener.onFailure(e);
+                }
                 // 增加当前读取的字节数，如果读取完成了bytesRead会返回-1
                 totalBytesRead += bytesRead != -1 ? bytesRead : 0;
                 // 回调，如果contentLength()不知道长度，会返回-1
@@ -76,6 +83,12 @@ class ProgressResponseBody extends ResponseBody {
          * @param done          是否下载完成
          */
         void update(long bytesRead, long contentLength, boolean done);
+
+        /**
+         * 下载时断网
+         * @param e
+         */
+        void onFailure(IOException e);
     }
 }
 
