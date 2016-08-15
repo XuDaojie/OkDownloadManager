@@ -97,7 +97,7 @@ public class FileUtils {
 
         String finalFilePath = filePath;
         if (index != 0) {
-            finalFilePath = filePathNoType + "(" + index + ")" + fileType;
+            finalFilePath = filePathNoType + "-" + index + fileType;
         }
 
         File file = new File(finalFilePath);

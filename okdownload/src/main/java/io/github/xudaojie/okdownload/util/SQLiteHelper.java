@@ -1,5 +1,6 @@
 package io.github.xudaojie.okdownload.util;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.DatabaseErrorHandler;
@@ -96,7 +97,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
         String sql = "CREATE TABLE " + TABLE_NAME + "(\n" +
                 "       allow_write Boolean,\n" +
-                "       id integer NOT NULL,\n" +
+                "       _id integer NOT NULL,\n" +
                 "       last_modify_timestamp integer,\n" +
                 "       local_filename varchar,\n" +
                 "       local_uri varchar,\n" +
@@ -107,8 +108,10 @@ public class SQLiteHelper extends SQLiteOpenHelper {
                 "       title varchar,\n" +
                 "       current_size_bytes integer,\n" +
                 "       total_size_bytes integer,\n" +
+                "       allowed_network_types integer,\n" +
+                "       visibility integer,\n" +
                 "       uri varchar,\n" +
-                "       PRIMARY KEY(id)\n" +
+                "       PRIMARY KEY(_id)\n" +
                 ")";
 
         db.execSQL(sql);
@@ -153,6 +156,20 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = getWritableDatabase();
 
         insert(db, id, url, localUri, title);
+    }
+
+    public long insert(ContentValues values) {
+        SQLiteDatabase db = getWritableDatabase();
+
+        String url = (String) values.get(OkDownloadManager.COLUMN_URI);
+        if (url == null) {
+            throw new IllegalArgumentException("Unknown URL " + url);
+        }
+        long id = System.currentTimeMillis();
+        values.put(OkDownloadManager.COLUMN_ID, id);
+        db.insert(TABLE_NAME, null, values);
+
+        return id;
     }
 
     public void update(long id, int status, long totalSizeBytes) {

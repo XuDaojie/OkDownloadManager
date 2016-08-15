@@ -3,7 +3,9 @@ package io.github.xudaojie.okdownloadmanager.sample;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -48,7 +50,19 @@ public class MainActivity extends AppCompatActivity {
                     // 33M
 //                    String url = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
 
-                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
+//                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
+
+                    OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);
+                    OkDownloadManager.Request request = new OkDownloadManager.Request(Uri.parse(url));
+                    request.setTitle("Download");
+                    request.setNotificationVisibility(OkDownloadManager.Request.VISIBILITY_HIDDEN);
+                    request.setDescription("TestDownload");
+                    request.setAllowedNetworkTypes(OkDownloadManager.Request.NETWORK_MOBILE
+                            | OkDownloadManager.Request.NETWORK_WIFI);
+                    request.setDestinationUri(
+                            Uri.parse(Environment.getExternalStorageDirectory() + "/OkDownload/" + "xxx.apk"));
+
+                    downloadManager.enqueue(request);
                 }
 
             }

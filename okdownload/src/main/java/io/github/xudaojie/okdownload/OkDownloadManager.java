@@ -1,20 +1,22 @@
 package io.github.xudaojie.okdownload;
 
-import android.app.NotificationManager;
-import android.app.Service;
+import android.app.DownloadManager;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.database.Cursor;
+import android.net.ConnectivityManager;
+import android.net.Uri;
 import android.os.Environment;
-import android.os.IBinder;
-import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.util.Pair;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import io.github.xudaojie.okdownload.util.FileUtils;
@@ -22,15 +24,15 @@ import io.github.xudaojie.okdownload.util.NotificationUtils;
 import io.github.xudaojie.okdownload.util.SQLiteHelper;
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import okhttp3.Response;
 
 /**
  * Created by xdj on 16/7/25.
  */
-public class OkDownloadManager extends Service {
+public class OkDownloadManager {
+
+    private static OkDownloadManager sInstance;
 
     public static final String TEMP_SUFFIX = ".t"; // 中间文件后缀
     public static final String FILENAME = "filename"; // 文件名
@@ -46,6 +48,8 @@ public class OkDownloadManager extends Service {
     public static final String ACTION_DOWNLOAD_COMPLETE = "android.intent.action.DOWNLOAD_COMPLETE";
     public static final String ACTION_NOTIFICATION_CLICKED = "android.intent.action.DOWNLOAD_NOTIFICATION_CLICKED";
     //    public static final String ACTION_VIEW_DOWNLOADS = "android.intent.action.VIEW_DOWNLOADS"; // 获取下载历史
+    public static final String COLUMN_ALLOWED_NETWORK_TYPES = "allowed_network_types";
+    public static final String COLUMN_VISIBILITY = "visibility";
     public static final String COLUMN_BYTES_DOWNLOADED_SO_FAR = "bytes_so_far";
     public static final String COLUMN_DESCRIPTION = "description";
     public static final String COLUMN_ID = "_id";
@@ -98,6 +102,13 @@ public class OkDownloadManager extends Service {
 
     private SQLiteHelper mSQLiteHelper;
 
+    public static OkDownloadManager getInstance(Context context) {
+        if (sInstance == null) {
+            sInstance = new OkDownloadManager(context);
+        }
+        return sInstance;
+    }
+
     public static void download(Context context, String title, String url, String fileName) {
         Intent i = new Intent(context, OkDownloadManager.class);
         i.putExtra(COLUMN_ID, (int) System.currentTimeMillis());
@@ -129,165 +140,28 @@ public class OkDownloadManager extends Service {
         context.startService(i);
     }
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        mContext = this;
-        Log.d("Service", "onCreate");
-        mSQLiteHelper = SQLiteHelper.getInstance(mContext);
-
-        if (mHttpClient == null) {
-            mHttpClient = new OkHttpClient.Builder()
-                    .addInterceptor(new Interceptor() {
-                        @Override
-                        public Response intercept(final Interceptor.Chain chain) throws IOException {
-                            final Request request = chain.request();
-                            final String url = chain.request().url().toString();
-                            final Map<String, Object> tagMap = (Map<String, Object>) request.tag();
-
-                            Response response = chain.proceed(request);
-                            return response.newBuilder()
-                                    .body(new ProgressResponseBody(response.body(), new ProgressResponseBody.ProgressListener() {
-                                        @Override
-                                        public void update(long bytesRead, long contentLength, boolean done) {
-                                            int percent = (int) ((float) bytesRead / contentLength * 100);
-                                            // 广播接收也是在主界面执行的,全部发送的话会造成系统卡顿
-                                            long currentTimeline = System.currentTimeMillis();
-                                            if ((currentTimeline - mTimeline > 600 && mPercent != percent)
-                                                    || done) {
-                                                int id = 0;
-                                                String title = "";
-                                                String filePath = "";
-
-                                                mTimeline = currentTimeline;
-                                                mPercent = percent;
-                                                Log.d(TAG, percent + "%");
-                                                if (done) {
-                                                    mUrl = null;
-                                                    mPercent = -1;
-                                                    Log.d(TAG, "download done; url: " + mUrl);
-                                                }
-
-                                                if (tagMap != null && tagMap.get(COLUMN_ID) != null) {
-                                                    id = (int) tagMap.get(COLUMN_ID);
-                                                    title = (String) tagMap.get(COLUMN_TITLE);
-                                                    filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
-                                                }
-
-                                                Intent i = new Intent();
-                                                i.setAction(ACTION_DOWNLOAD);
-                                                i.putExtra(DOWNLOAD_PERCENT, percent);
-                                                i.putExtra(COLUMN_URI, url);
-                                                i.putExtra(COLUMN_ID, id);
-                                                i.putExtra(COLUMN_TITLE, title);
-                                                i.putExtra(COLUMN_LOCAL_URI, filePath);
-                                                i.putExtra(COLUMN_TOTAL_SIZE_BYTES, contentLength);
-
-                                                // 必须也使用LocalBroadcastReceiver进行注册才能接收
-                                                mBroadcastManager.sendBroadcast(i);
-                                            }
-
-                                        }
-
-                                        @Override
-                                        public void onFailure(IOException e) {
-                                            int id = 0;
-                                            String title = "";
-                                            String filePath = "";
-
-                                            Log.d(TAG, "onFailure");
-
-                                            if (tagMap != null && tagMap.get(COLUMN_ID) != null) {
-                                                id = (int) tagMap.get(COLUMN_ID);
-                                                title = (String) tagMap.get(COLUMN_TITLE);
-                                                filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
-                                            }
-
-                                            Intent i = new Intent();
-                                            i.setAction(ACTION_DOWNLOAD_FAIL);
-                                            i.putExtra(COLUMN_URI, url);
-                                            i.putExtra(COLUMN_ID, id);
-                                            i.putExtra(COLUMN_TITLE, title);
-                                            i.putExtra(COLUMN_LOCAL_URI, filePath);
-
-                                            // 必须也使用LocalBroadcastReceiver进行注册才能接收
-                                            mBroadcastManager.sendBroadcast(i);
-                                        }
-                                    }))
-                                    .build();
-                        }
-                    })
-                    .build();
-            mBroadcastManager = LocalBroadcastManager.getInstance(mContext);
-
-            OkDownloadReceiver okHttpReceiver = new OkDownloadReceiver();
-            IntentFilter filter = new IntentFilter();
-            filter.addAction(ACTION_DOWNLOAD);
-            filter.addAction(ACTION_DOWNLOAD_FAIL);
-            mBroadcastManager.registerReceiver(okHttpReceiver, filter);
-        }
+    public OkDownloadManager(Context context) {
+        mSQLiteHelper = SQLiteHelper.getInstance(context);
+        mContext = context;
     }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d("Service", "onStartCommand");
+    /**
+     * Enqueue a new download.  The download will start automatically once the download manager is
+     * ready to execute it and connectivity is available.
+     *
+     * @param request the parameters specifying this download
+     * @return an ID for the download, unique across the system.  This ID is used to make future
+     * calls related to this download.
+     */
+    public long enqueue(Request request) {
+        ContentValues values = request.toContentValues();
+        long id = mSQLiteHelper.insert(values);
 
-        if (intent != null && intent.hasExtra(COLUMN_ID) && intent.hasExtra(COLUMN_URI)) {
-            int downloadType = intent.getIntExtra(DOWNLOAD_TYPE, DOWNLOAD_TYPE_DEFAULT);
+        Intent i = new Intent(mContext, DownloadService.class);
+        i.putExtra(COLUMN_ID, id);
+        mContext.startService(i);
 
-            if (downloadType != DOWNLOAD_TYPE_CONTINUE) {
-                String fileName = intent.getStringExtra(FILENAME);
-                int id = intent.getIntExtra(COLUMN_ID, 0);
-                String url = intent.getStringExtra(COLUMN_URI);
-                String title = intent.getStringExtra(COLUMN_TITLE);
-                String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
-
-                filePath = FileUtils.checkOrCreateFileName(filePath, 0);
-
-                download(id, url, title, filePath, 0);
-            } else {
-                int id = intent.getIntExtra(COLUMN_ID, 0);
-                String url = intent.getStringExtra(COLUMN_URI);
-                String title = intent.getStringExtra(COLUMN_TITLE);
-                String filePath = intent.getStringExtra(COLUMN_LOCAL_URI);
-
-                File file = new File(filePath + TEMP_SUFFIX);
-
-                download(id, url, title, filePath, file.length());
-            }
-        } else {
-            // 服务尚未停止Apk被回收,会再度启动Service
-            NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            notificationManager.cancelAll();
-            stopSelf();
-        }
-
-        return super.onStartCommand(intent, flags, startId);
-    }
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        Log.d("Service", "onBind");
-        return null;
-    }
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        Log.d("Service", "onUnbind");
-        return super.onUnbind(intent);
-    }
-
-    @Override
-    public void onDestroy() {
-        Log.d("Service", "onDestroy");
-        super.onDestroy();
-        mSQLiteHelper = SQLiteHelper.getInstance(this);
-        if (mSQLiteHelper != null) {
-            // 将所有在下载的状态改为暂停
-            mSQLiteHelper.updateAllRunToPause();
-            mSQLiteHelper.close();
-        }
+        return id;
     }
 
     /**
@@ -313,7 +187,7 @@ public class OkDownloadManager extends Service {
             mSQLiteHelper.insert(id, url, filePath, title);
         }
 
-        Request request = new Request.Builder()
+        okhttp3.Request request = new okhttp3.Request.Builder()
                 .addHeader("Range", "bytes=" + pos + "-")
                 .url(url)
                 .get()
@@ -342,5 +216,260 @@ public class OkDownloadManager extends Service {
                 });
     }
 
+    public static class Request {
+        public static final int NETWORK_MOBILE = 1;
+        public static final int NETWORK_WIFI = 2;
 
+        /**
+         * This download is visible but only shows in the notifications
+         * while it's in progress.
+         */
+        public static final int VISIBILITY_VISIBLE = 0;
+
+        /**
+         * This download is visible and shows in the notifications while
+         * in progress and after completion.
+         */
+        public static final int VISIBILITY_VISIBLE_NOTIFY_COMPLETED = 1;
+
+        /**
+         * This download doesn't show in the UI or in the notifications.
+         */
+        public static final int VISIBILITY_HIDDEN = 2;
+
+        /**
+         * This download shows in the notifications after completion ONLY.
+         * It is usuable only with
+         * {@link DownloadManager#addCompletedDownload(String, String,
+         * boolean, String, String, long, boolean)}.
+         */
+        public static final int VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION = 3;
+
+        /** can take any of the following values: {@link #VISIBILITY_HIDDEN}
+         * {@link #VISIBILITY_VISIBLE_NOTIFY_COMPLETED}, {@link #VISIBILITY_VISIBLE},
+         * {@link #VISIBILITY_VISIBLE_NOTIFY_ONLY_COMPLETION}
+         */
+        private int mNotificationVisibility = VISIBILITY_VISIBLE;
+
+        private Uri mUri;
+        private Uri mDestinationUri;
+        private List<Pair<String, String>> mRequestHeaders = new ArrayList<>();
+        private CharSequence mTitle;
+        private CharSequence mDescription;
+        private String mMimeType; // TODO: 16/8/11
+        // ~ 位反 ~00110011 11001100
+        private int mAllowedNetworkTypes = ~0; // default to all network types allowed
+
+        private boolean mMeteredAllowed = true; // TODO: 16/8/11
+
+        /**
+         * @param uri the HTTP or HTTPS URI to download.
+         */
+        public Request(Uri uri) {
+            if (uri == null) {
+                throw new NullPointerException();
+            }
+            String scheme = uri.getScheme();
+            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) {
+                throw new IllegalArgumentException("Can only download HTTP/HTTPS URIs: " + uri);
+            }
+            mUri = uri;
+        }
+
+        Request(String uriString) {
+            mUri = Uri.parse(uriString);
+        }
+
+        /**
+         * Set the local destination for the downloaded file. Must be a file URI to a path on
+         * external storage, and the calling application must have the WRITE_EXTERNAL_STORAGE
+         * permission.
+         * By default, downloads are saved to a generated filename in the shared download cache and
+         * may be deleted by the system at any time to reclaim space.
+         *
+         * @return this object
+         */
+        public Request setDestinationUri(Uri uri) {
+            mDestinationUri = uri;
+            return this;
+        }
+
+        /**
+         * Set the local destination for the downloaded file to a path within
+         * the application's external files directory (as returned by
+         * {@link Context#getExternalFilesDir(String)}.
+         * <p>
+         * @param context the {@link Context} to use in determining the external
+         *            files directory
+         * @param dirType the directory type to pass to
+         *            {@link Context#getExternalFilesDir(String)}
+         * @param subPath the path within the external directory, including the
+         *            destination filename
+         * @return this object
+         * @throws IllegalStateException If the external storage directory
+         *             cannot be found or created.
+         */
+        public Request setDestinationInExternalFilesDir(Context context, String dirType,
+                                                                        String subPath) {
+            final File file = context.getExternalFilesDir(dirType);
+            if (file == null) {
+                throw new IllegalStateException("Failed to get external storage files directory");
+            } else if (file.exists()) {
+                if (!file.isDirectory()) {
+                    throw new IllegalStateException(file.getAbsolutePath() +
+                            " already exists and is not a directory");
+                }
+            } else {
+                if (!file.mkdirs()) {
+                    throw new IllegalStateException("Unable to create directory: "+
+                            file.getAbsolutePath());
+                }
+            }
+            setDestinationFromBase(file, subPath);
+            return this;
+        }
+
+        private void setDestinationFromBase(File base, String subPath) {
+            if (subPath == null) {
+                throw new NullPointerException("subPath cannot be null");
+            }
+            mDestinationUri = Uri.withAppendedPath(Uri.fromFile(base), subPath);
+        }
+
+        /**
+         * Add an HTTP header to be included with the download request.  The header will be added to
+         * the end of the list.
+         * @param header HTTP header name
+         * @param value header value
+         * @return this object
+         * @see <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2">HTTP/1.1
+         *      Message Headers</a>
+         */
+        public Request addRequestHeader(String header, String value) {
+            if (header == null) {
+                throw new NullPointerException("header cannot be null");
+            }
+            if (header.contains(":")) {
+                throw new IllegalArgumentException("header may not contain ':'");
+            }
+            if (value == null) {
+                value = "";
+            }
+            mRequestHeaders.add(Pair.create(header, value));
+            return this;
+        }
+
+        /**
+         * Set the title of this download, to be displayed in notifications (if enabled).  If no
+         * title is given, a default one will be assigned based on the download filename, once the
+         * download starts.
+         * @return this object
+         */
+        public Request setTitle(CharSequence title) {
+            mTitle = title;
+            return this;
+        }
+
+        /**
+         * Set a description of this download, to be displayed in notifications (if enabled)
+         * @return this object
+         * todo
+         */
+        public Request setDescription(CharSequence description) {
+            mDescription = description;
+            return this;
+        }
+
+        /**
+         * Control whether a system notification is posted by the download manager while this
+         * download is running or when it is completed.
+         * If enabled, the download manager posts notifications about downloads
+         * through the system {@link android.app.NotificationManager}.
+         * By default, a notification is shown only when the download is in progress.
+         *<p>
+         * It can take the following values: {@link #VISIBILITY_HIDDEN},
+         * {@link #VISIBILITY_VISIBLE},
+         * {@link #VISIBILITY_VISIBLE_NOTIFY_COMPLETED}.
+         *<p>
+         * If set to {@link #VISIBILITY_HIDDEN}, this requires the permission
+         * android.permission.DOWNLOAD_WITHOUT_NOTIFICATION.
+         *
+         * @param visibility the visibility setting value
+         * @return this object
+         */
+        public Request setNotificationVisibility(int visibility) {
+            mNotificationVisibility = visibility;
+            return this;
+        }
+
+        /**
+         * Restrict the types of networks over which this download may proceed.
+         *
+         * @param flags any combination of the NETWORK_* bit flags.
+         * @return this object
+         */
+        public Request setAllowedNetworkTypes(int flags) {
+            mAllowedNetworkTypes = flags;
+            return this;
+        }
+
+        /**
+         * Set whether this download may proceed over a metered network
+         * connection. By default, metered networks are allowed.
+         *
+         * @see ConnectivityManager#isActiveNetworkMetered()
+         * todo 流量统计?
+         */
+        public Request setAllowedOverMetered(boolean allow) {
+            mMeteredAllowed = allow;
+            return this;
+        }
+
+        /**
+         * @return ContentValues to be passed to DownloadProvider.insert()
+         */
+        ContentValues toContentValues() {
+            ContentValues values = new ContentValues();
+            assert mUri != null;
+            values.put(COLUMN_URI, mUri.toString());
+
+            if (mDestinationUri != null) {
+//                values.put(Downloads.Impl.COLUMN_DESTINATION, Downloads.Impl.DESTINATION_FILE_URI);
+//                values.put(Downloads.Impl.COLUMN_FILE_NAME_HINT, mDestinationUri.toString());
+                values.put(COLUMN_LOCAL_URI, mDestinationUri.toString());
+            } else {
+                values.put(COLUMN_LOCAL_URI, Environment.getExternalStorageDirectory()
+                        + "/Download/" + mUri.getLastPathSegment());
+            }
+            // is the file supposed to be media-scannable?
+//            values.put(Downloads.Impl.COLUMN_MEDIA_SCANNED, (mScannable) ? SCANNABLE_VALUE_YES :
+//                    SCANNABLE_VALUE_NO);
+
+            if (!mRequestHeaders.isEmpty()) {
+//                encodeHttpHeaders(values);
+            }
+
+            if (mTitle != null) {
+                values.put(COLUMN_TITLE, mTitle.toString());
+            } else {
+                values.put(COLUMN_TITLE, mUri.getLastPathSegment());
+         }
+
+            values.put(COLUMN_VISIBILITY, mNotificationVisibility);
+            values.put(COLUMN_ALLOWED_NETWORK_TYPES, mAllowedNetworkTypes);
+
+//            putIfNonNull(values, Downloads.Impl.COLUMN_TITLE, mTitle);
+//            putIfNonNull(values, Downloads.Impl.COLUMN_DESCRIPTION, mDescription);
+//            putIfNonNull(values, Downloads.Impl.COLUMN_MIME_TYPE, mMimeType);
+
+//            values.put(Downloads.Impl.COLUMN_VISIBILITY, mNotificationVisibility);
+//            values.put(Downloads.Impl.COLUMN_ALLOWED_NETWORK_TYPES, mAllowedNetworkTypes);
+//            values.put(Downloads.Impl.COLUMN_ALLOW_ROAMING, mRoamingAllowed);
+//            values.put(Downloads.Impl.COLUMN_ALLOW_METERED, mMeteredAllowed);
+//            values.put(Downloads.Impl.COLUMN_IS_VISIBLE_IN_DOWNLOADS_UI, mIsVisibleInDownloadsUi);
+
+            return values;
+
+        }
+    }
 }
