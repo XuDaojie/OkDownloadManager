@@ -72,7 +72,7 @@ public class DownloadService extends Service {
                                             long currentTimeline = System.currentTimeMillis();
                                             if ((currentTimeline - mTimeline > 600 && mPercent != percent)
                                                     || done) {
-                                                int id = 0;
+                                                long id = 0;
                                                 String title = "";
                                                 String filePath = "";
 
@@ -86,7 +86,7 @@ public class DownloadService extends Service {
                                                 }
 
                                                 if (tagMap != null && tagMap.get(OkDownloadManager.COLUMN_ID) != null) {
-                                                    id = (int) tagMap.get(OkDownloadManager.COLUMN_ID);
+                                                    id = (long) tagMap.get(OkDownloadManager.COLUMN_ID);
                                                     title = (String) tagMap.get(OkDownloadManager.COLUMN_TITLE);
                                                     filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
                                                 }
@@ -108,14 +108,14 @@ public class DownloadService extends Service {
 
                                         @Override
                                         public void onFailure(IOException e) {
-                                            int id = 0;
+                                            long id = 0;
                                             String title = "";
                                             String filePath = "";
 
                                             Log.d(TAG, "onFailure");
 
                                             if (tagMap != null && tagMap.get(OkDownloadManager.COLUMN_ID) != null) {
-                                                id = (int) tagMap.get(OkDownloadManager.COLUMN_ID);
+                                                id = (long) tagMap.get(OkDownloadManager.COLUMN_ID);
                                                 title = (String) tagMap.get(OkDownloadManager.COLUMN_TITLE);
                                                 filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
                                             }
@@ -164,7 +164,7 @@ public class DownloadService extends Service {
             String localUri = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_LOCAL_URI));
 
             // TODO: 16/8/16 notification Id 为int downloadId 为long 有冲突
-            download((int) id, url, title, localUri, 0);
+            download(id, url, title, localUri, 0);
 
 //            int downloadType = intent.getIntExtra(DOWNLOAD_TYPE, DOWNLOAD_MODE_NEW_TASK);
 //            if (downloadType != DOWNLOAD_MODE_CONTINUE) {
@@ -228,11 +228,10 @@ public class DownloadService extends Service {
      * @param title
      * @param filePath
      * @param pos      从文件流的指定位置开始下载
-     */
-    public void download(final int id, String url, final String title, final String filePath,
+     */    public void download(final long id, String url, final String title, final String filePath,
                          final long pos) {
         if (mSQLiteHelper.getDownloadCount() >= 1) {
-            NotificationUtils.showPending(mContext, title, id);
+            NotificationUtils.showPending(mContext, title, (int) id);
             mSQLiteHelper.insert(id, url, filePath, title, OkDownloadManager.STATUS_PENDING);
             Log.d(TAG, "同时只能进行一个下载");
             return;
@@ -240,7 +239,7 @@ public class DownloadService extends Service {
 
         mUrl = url;
 
-        NotificationUtils.showPending(mContext, title, id);
+        NotificationUtils.showPending(mContext, title, (int) id);
 
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .addHeader("Range", "bytes=" + pos + "-")

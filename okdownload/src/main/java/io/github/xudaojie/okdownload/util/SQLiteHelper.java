@@ -202,7 +202,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
             String sql = "UPDATE " + TABLE_NAME + "\n" +
                     "SET status = ?\n" +
                     "WHERE\n" +
-                    "    id = ?";
+                    "    _id = ?";
             Object[] args = new Object[]{status, id};
             db.execSQL(sql, args);
             db.setTransactionSuccessful();

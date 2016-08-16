@@ -34,7 +34,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         Notification notification = null;
 
-        int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
+        long id = intent.getLongExtra(OkDownloadManager.COLUMN_ID, 0);
         String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
         String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
 
@@ -100,7 +100,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 
         if (notification != null) {
             NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-            manager.notify(id, notification);
+            manager.notify((int) id, notification); // TODO: 16/8/17 notification id智能为int
         }
     }
 }
