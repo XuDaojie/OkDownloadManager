@@ -5,13 +5,12 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Environment;
+import android.database.Cursor;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,9 +26,6 @@ import okhttp3.Response;
 
 import static io.github.xudaojie.okdownload.OkDownloadManager.ACTION_DOWNLOAD;
 import static io.github.xudaojie.okdownload.OkDownloadManager.ACTION_DOWNLOAD_FAIL;
-import static io.github.xudaojie.okdownload.OkDownloadManager.DOWNLOAD_TYPE;
-import static io.github.xudaojie.okdownload.OkDownloadManager.DOWNLOAD_TYPE_CONTINUE;
-import static io.github.xudaojie.okdownload.OkDownloadManager.DOWNLOAD_TYPE_DEFAULT;
 import static io.github.xudaojie.okdownload.OkDownloadManager.TEMP_SUFFIX;
 
 /**
@@ -153,30 +149,44 @@ public class DownloadService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d("Service", "onStartCommand");
 
-        if (intent != null && intent.hasExtra(OkDownloadManager.COLUMN_ID)
-                && intent.hasExtra(OkDownloadManager.COLUMN_URI)) {
-            int downloadType = intent.getIntExtra(DOWNLOAD_TYPE, DOWNLOAD_TYPE_DEFAULT);
+        if (intent != null && intent.hasExtra(OkDownloadManager.COLUMN_ID)) {
+            long id = intent.getLongExtra(OkDownloadManager.COLUMN_ID, 0);
 
-            if (downloadType != DOWNLOAD_TYPE_CONTINUE) {
-                String fileName = intent.getStringExtra(OkDownloadManager.FILENAME);
-                int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
-                String url = intent.getStringExtra(OkDownloadManager.COLUMN_URI);
-                String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
-                String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
-
-                filePath = FileUtils.checkOrCreateFileName(filePath, 0);
-
-                download(id, url, title, filePath, 0);
-            } else {
-                int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
-                String url = intent.getStringExtra(OkDownloadManager.COLUMN_URI);
-                String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
-                String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
-
-                File file = new File(filePath + TEMP_SUFFIX);
-
-                download(id, url, title, filePath, file.length());
+            Cursor taskCursor = mSQLiteHelper.getCursorById(id);
+            if (taskCursor.getCount() == 0) {
+                // TODO: 16/8/16 任务不存在
+                Log.d(TAG, "not found id");
+                return super.onStartCommand(intent, flags, startId);
             }
+            taskCursor.moveToNext();
+            String url = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_URI));
+            String title = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_TITLE));
+            String localUri = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_LOCAL_URI));
+
+            // TODO: 16/8/16 notification Id 为int downloadId 为long 有冲突
+            download((int) id, url, title, localUri, 0);
+
+//            int downloadType = intent.getIntExtra(DOWNLOAD_TYPE, DOWNLOAD_MODE_NEW_TASK);
+//            if (downloadType != DOWNLOAD_MODE_CONTINUE) {
+//                String fileName = intent.getStringExtra(OkDownloadManager.FILENAME);
+//                int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
+//                String url = intent.getStringExtra(OkDownloadManager.COLUMN_URI);
+//                String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
+//                String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
+//
+//                filePath = FileUtils.checkOrCreateFileName(filePath, 0);
+//
+//                download(id, url, title, filePath, 0);
+//            } else {
+//                int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
+//                String url = intent.getStringExtra(OkDownloadManager.COLUMN_URI);
+//                String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
+//                String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
+//
+//                File file = new File(filePath + TEMP_SUFFIX);
+//
+//                download(id, url, title, filePath, file.length());
+//            }
         } else {
             // 服务尚未停止Apk被回收,会再度启动Service
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -231,9 +241,6 @@ public class DownloadService extends Service {
         mUrl = url;
 
         NotificationUtils.showPending(mContext, title, id);
-        if (pos == 0) {
-            mSQLiteHelper.insert(id, url, filePath, title);
-        }
 
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .addHeader("Range", "bytes=" + pos + "-")

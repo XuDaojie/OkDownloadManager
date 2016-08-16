@@ -182,7 +182,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
                     "SET status = ?,\n" +
                     " total_size_bytes = ?\n" +
                     "WHERE\n" +
-                    "    id = ?";
+                    "    _id = ?";
             Object[] args = new Object[]{status, totalSizeBytes, id};
             db.execSQL(sql, args);
             db.setTransactionSuccessful();
@@ -226,7 +226,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
     public int getStatus(long id) {
         SQLiteDatabase db = getReadableDatabase();
-        Cursor cursor = db.rawQuery("select " + OkDownloadManager.COLUMN_STATUS + " from " + TABLE_NAME + " where id = ?",
+        Cursor cursor = db.rawQuery("select " + OkDownloadManager.COLUMN_STATUS + " from " + TABLE_NAME + " where _id = ?",
                 new String[]{id + ""});
         if (cursor.getCount() != 0) {
             cursor.moveToFirst();
@@ -250,12 +250,20 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         return cursor.getInt(0);
     }
 
+    public Cursor getCursorById(long id) {
+        String sql = "select _id, title, uri, local_uri, status from " + TABLE_NAME +
+                " where _id = " + id;
+
+        SQLiteDatabase db = getReadableDatabase();
+        return db.rawQuery(sql, null);
+    }
+
     /**
      * 获得所有状态为暂停的任务id
      * @return
      */
-    public Cursor getPauseCursor() {
-        String sql = "select id, title, uri, local_uri from " + TABLE_NAME +
+    public Cursor getCursorByPause() {
+        String sql = "select _id, title, uri, local_uri from " + TABLE_NAME +
                 " where status = " + OkDownloadManager.STATUS_PAUSED;
 
         SQLiteDatabase db = getReadableDatabase();

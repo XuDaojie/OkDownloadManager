@@ -72,6 +72,12 @@ public class FileUtils {
         int len;
 
         File file = new File(outPath);
+        if (!checkAndCreateParentFile(file)) {
+            if (!file.getParentFile().mkdir()) {
+                Log.d(TAG, "parent file create fail");
+                return;
+            }
+        }
         RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
         randomAccessFile.seek(pos);
 
@@ -106,5 +112,22 @@ public class FileUtils {
         }
 
         return checkOrCreateFileName(filePath, ++index);
+    }
+
+    /**
+     * 检查是否存在父目录 没有测创建
+     * @param file
+     * @return
+     */
+    public static boolean checkAndCreateParentFile(File file) {
+        if (!file.getParentFile().exists()) {
+            if (!file.getParentFile().mkdir()) {
+                Log.d(TAG, "parent file create fail");
+                return false;
+            }
+            return checkAndCreateParentFile(file.getParentFile());
+
+        }
+        return true;
     }
 }

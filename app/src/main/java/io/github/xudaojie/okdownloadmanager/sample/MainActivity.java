@@ -52,6 +52,12 @@ public class MainActivity extends AppCompatActivity {
 
 //                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
 
+//                    OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);
+//                    OkDownloadManager.Request request = new OkDownloadManager.Request(Uri.parse(url));
+//                    request.setDownloadId(1471225096561L);
+//
+//                    downloadManager.enqueue(request);
+
                     OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);
                     OkDownloadManager.Request request = new OkDownloadManager.Request(Uri.parse(url));
                     request.setTitle("Download");

@@ -8,24 +8,14 @@ import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Environment;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.util.Pair;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import io.github.xudaojie.okdownload.util.FileUtils;
-import io.github.xudaojie.okdownload.util.NotificationUtils;
 import io.github.xudaojie.okdownload.util.SQLiteHelper;
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.OkHttpClient;
-import okhttp3.Response;
 
 /**
  * Created by xdj on 16/7/25.
@@ -40,8 +30,8 @@ public class OkDownloadManager {
     public static final String DOWNLOAD_PERCENT = "download_percent";
     public static final String DOWNLOAD_TYPE = "download_type"; // 继续下载还是重新下载
 
-    public static final int DOWNLOAD_TYPE_DEFAULT = 1;
-    public static final int DOWNLOAD_TYPE_CONTINUE = 2; // 继续下载(断点续传)
+    public static final int DOWNLOAD_MODE_NEW_TASK = 1;
+    public static final int DOWNLOAD_MODE_CONTINUE = 2; // 继续下载(断点续传)
 
     public static final String ACTION_DOWNLOAD_FAIL = "android.intent.action.DOWNLOAD_FAIL"; // 下载过程中出现异常
     public static final String ACTION_DOWNLOAD = "android.intent.action.DOWNLOAD"; // 正在下载
@@ -91,15 +81,7 @@ public class OkDownloadManager {
 
     private static final String TAG = "OkDownloadManager";
 
-    private static OkHttpClient mHttpClient;
-
     private Context mContext;
-    private LocalBroadcastManager mBroadcastManager;
-
-    private long mTimeline; // 上次发送广播的时间
-    private String mUrl; // 正在进行下载的链接
-    private int mPercent; // 正在进行下载的进度
-
     private SQLiteHelper mSQLiteHelper;
 
     public static OkDownloadManager getInstance(Context context) {
@@ -122,7 +104,7 @@ public class OkDownloadManager {
         SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(context);
 
         // TODO: 16/8/10 检查当前未下载完成的链接
-        Cursor cursor = sqLiteHelper.getPauseCursor();
+        Cursor cursor = sqLiteHelper.getCursorByPause();
         cursor.moveToFirst();
 
         String title = cursor.getString(1);
@@ -136,7 +118,7 @@ public class OkDownloadManager {
         i.putExtra(COLUMN_URI, uri);
         i.putExtra(COLUMN_TITLE, title);
         i.putExtra(COLUMN_LOCAL_URI, localUri);
-        i.putExtra(DOWNLOAD_TYPE, DOWNLOAD_TYPE_CONTINUE);
+        i.putExtra(DOWNLOAD_TYPE, DOWNLOAD_MODE_CONTINUE);
         context.startService(i);
     }
 
@@ -155,65 +137,17 @@ public class OkDownloadManager {
      */
     public long enqueue(Request request) {
         ContentValues values = request.toContentValues();
-        long id = mSQLiteHelper.insert(values);
+
+        long id = request.getDwonloadId();
+        if (request.getDwonloadId() == 0) {
+            id = mSQLiteHelper.insert(values);
+        }
 
         Intent i = new Intent(mContext, DownloadService.class);
         i.putExtra(COLUMN_ID, id);
         mContext.startService(i);
 
         return id;
-    }
-
-    /**
-     * @param id
-     * @param url
-     * @param title
-     * @param filePath
-     * @param pos      从文件流的指定位置开始下载
-     */
-    public void download(final int id, String url, final String title, final String filePath,
-                         final long pos) {
-        if (mSQLiteHelper.getDownloadCount() >= 1) {
-            NotificationUtils.showPending(mContext, title, id);
-            mSQLiteHelper.insert(id, url, filePath, title, OkDownloadManager.STATUS_PENDING);
-            Log.d(TAG, "同时只能进行一个下载");
-            return;
-        }
-
-        mUrl = url;
-
-        NotificationUtils.showPending(mContext, title, id);
-        if (pos == 0) {
-            mSQLiteHelper.insert(id, url, filePath, title);
-        }
-
-        okhttp3.Request request = new okhttp3.Request.Builder()
-                .addHeader("Range", "bytes=" + pos + "-")
-                .url(url)
-                .get()
-                .build();
-        Map<String, Object> tags = new HashMap<>();
-        tags.put(ORIGIN_TAG, request.tag());
-        tags.put(COLUMN_ID, id);
-        tags.put(COLUMN_TITLE, title);
-        tags.put(COLUMN_LOCAL_URI, filePath);
-        request = request.newBuilder()
-                .tag(tags)
-                .build();
-
-        mHttpClient.newCall(request)
-                .enqueue(new Callback() {
-                    @Override
-                    public void onFailure(Call call, IOException e) {
-                        mSQLiteHelper.update(id, OkDownloadManager.STATUS_FAILED, 0);
-                    }
-
-                    @Override
-                    public void onResponse(Call call, Response response) throws IOException {
-                        Log.d(TAG, "onResponse");
-                        FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream(), pos);
-                    }
-                });
     }
 
     public static class Request {
@@ -261,6 +195,8 @@ public class OkDownloadManager {
         private int mAllowedNetworkTypes = ~0; // default to all network types allowed
 
         private boolean mMeteredAllowed = true; // TODO: 16/8/11
+
+        private long mDownloadId;
 
         /**
          * @param uri the HTTP or HTTPS URI to download.
@@ -326,7 +262,7 @@ public class OkDownloadManager {
                 }
             }
             setDestinationFromBase(file, subPath);
-            return this;
+           return this;
         }
 
         private void setDestinationFromBase(File base, String subPath) {
@@ -425,6 +361,18 @@ public class OkDownloadManager {
             return this;
         }
 
+        public long getDwonloadId() {
+            return mDownloadId;
+        }
+
+        /**
+         * 之前下载记录的id,设置此属性后会先寻找原记录继续下载
+         * @param downloadId
+         */
+        public void setDownloadId(long downloadId) {
+            mDownloadId = downloadId;
+        }
+
         /**
          * @return ContentValues to be passed to DownloadProvider.insert()
          */
@@ -457,6 +405,8 @@ public class OkDownloadManager {
 
             values.put(COLUMN_VISIBILITY, mNotificationVisibility);
             values.put(COLUMN_ALLOWED_NETWORK_TYPES, mAllowedNetworkTypes);
+
+            values.put(COLUMN_STATUS, STATUS_PENDING);
 
 //            putIfNonNull(values, Downloads.Impl.COLUMN_TITLE, mTitle);
 //            putIfNonNull(values, Downloads.Impl.COLUMN_DESCRIPTION, mDescription);
