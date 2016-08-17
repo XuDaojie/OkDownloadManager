@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -46,29 +45,28 @@ public class MainActivity extends AppCompatActivity {
                     }
                 } else {
                     // 5M
-//                    String url = "http://pkg3.fir.im/71da3de01a28cff3f9884ada102e22fdbadaab35.apk?attname=app-release.apk_1.0.apk";
+                    String url = "http://pkg3.fir.im/71da3de01a28cff3f9884ada102e22fdbadaab35.apk?attname=app-release.apk_1.0.apk";
                     // 33M
-                    String url = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
+//                    String url = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
 
-//                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
+                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
+                    OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);
+                    OkDownloadManager.Request request = new OkDownloadManager.Request(Uri.parse(url));
+                    request.setDownloadId(1471414784822L);
+
+                    downloadManager.enqueue(request);
 
 //                    OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);
 //                    OkDownloadManager.Request request = new OkDownloadManager.Request(Uri.parse(url));
-//                    request.setDownloadId(1471225096561L);
+//                    request.setTitle("Download");
+//                    request.setNotificationVisibility(OkDownloadManager.Request.VISIBILITY_HIDDEN);
+//                    request.setDescription("TestDownload");
+//                    request.setAllowedNetworkTypes(OkDownloadManager.Request.NETWORK_MOBILE
+//                            | OkDownloadManager.Request.NETWORK_WIFI);
+//                    request.setDestinationUri(
+//                            Uri.parse(Environment.getExternalStorageDirectory() + "/OkDownload/" + "xxx.apk"));
 //
 //                    downloadManager.enqueue(request);
-
-                    OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);
-                    OkDownloadManager.Request request = new OkDownloadManager.Request(Uri.parse(url));
-                    request.setTitle("Download");
-                    request.setNotificationVisibility(OkDownloadManager.Request.VISIBILITY_HIDDEN);
-                    request.setDescription("TestDownload");
-                    request.setAllowedNetworkTypes(OkDownloadManager.Request.NETWORK_MOBILE
-                            | OkDownloadManager.Request.NETWORK_WIFI);
-                    request.setDestinationUri(
-                            Uri.parse(Environment.getExternalStorageDirectory() + "/OkDownload/" + "xxx.apk"));
-
-                    downloadManager.enqueue(request);
                 }
 
             }

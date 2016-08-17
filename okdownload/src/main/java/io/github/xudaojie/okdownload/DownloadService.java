@@ -11,6 +11,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +42,6 @@ public class DownloadService extends Service {
     private LocalBroadcastManager mBroadcastManager;
 
     private long mTimeline; // 上次发送广播的时间
-    private String mUrl; // 正在进行下载的链接
     private int mPercent; // 正在进行下载的进度
 
     private SQLiteHelper mSQLiteHelper;
@@ -67,6 +67,8 @@ public class DownloadService extends Service {
                                     .body(new ProgressResponseBody(response.body(), new ProgressResponseBody.ProgressListener() {
                                         @Override
                                         public void update(long bytesRead, long contentLength, boolean done) {
+                                            Log.d(TAG, bytesRead + "/" + contentLength);
+
                                             int percent = (int) ((float) bytesRead / contentLength * 100);
                                             // 广播接收也是在主界面执行的,全部发送的话会造成系统卡顿
                                             long currentTimeline = System.currentTimeMillis();
@@ -80,9 +82,8 @@ public class DownloadService extends Service {
                                                 mPercent = percent;
                                                 Log.d(TAG, percent + "%");
                                                 if (done) {
-                                                    mUrl = null;
                                                     mPercent = -1;
-                                                    Log.d(TAG, "download done; url: " + mUrl);
+                                                    Log.d(TAG, "download done; url: " + url);
                                                 }
 
                                                 if (tagMap != null && tagMap.get(OkDownloadManager.COLUMN_ID) != null) {
@@ -163,8 +164,13 @@ public class DownloadService extends Service {
             String title = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_TITLE));
             String localUri = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_LOCAL_URI));
 
+            File file = new File(localUri + TEMP_SUFFIX);
+            long pos = 0;
+            if (file.exists()) {
+                pos = file.length();
+            }
             // TODO: 16/8/16 notification Id 为int downloadId 为long 有冲突
-            download(id, url, title, localUri, 0);
+            download(id, url, title, localUri, pos);
 
 //            int downloadType = intent.getIntExtra(DOWNLOAD_TYPE, DOWNLOAD_MODE_NEW_TASK);
 //            if (downloadType != DOWNLOAD_MODE_CONTINUE) {
@@ -230,15 +236,6 @@ public class DownloadService extends Service {
      * @param pos      从文件流的指定位置开始下载
      */    public void download(final long id, String url, final String title, final String filePath,
                          final long pos) {
-        if (mSQLiteHelper.getDownloadCount() >= 1) {
-            NotificationUtils.showPending(mContext, title, (int) id);
-            mSQLiteHelper.insert(id, url, filePath, title, OkDownloadManager.STATUS_PENDING);
-            Log.d(TAG, "同时只能进行一个下载");
-            return;
-        }
-
-        mUrl = url;
-
         NotificationUtils.showPending(mContext, title, (int) id);
 
         okhttp3.Request request = new okhttp3.Request.Builder()
