@@ -106,56 +106,17 @@ public class SQLiteHelper extends SQLiteOpenHelper {
                 "       reason varchar,\n" +
                 "       status integer,\n" +
                 "       title varchar,\n" +
-                "       current_size_bytes integer,\n" +
-                "       total_size_bytes integer,\n" +
+                "       current_bytes integer,\n" +
+                "       total_bytes integer,\n" +
                 "       allowed_network_types integer,\n" +
                 "       visibility integer,\n" +
                 "       uri varchar,\n" +
+                "       etag varchar,\n" +
+                "       error_msg varchar,\n" +
                 "       PRIMARY KEY(_id)\n" +
                 ")";
 
         db.execSQL(sql);
-    }
-
-    public void insert(SQLiteDatabase db,
-                       long id, boolean allowWrite, long timeline,
-                       String localUri, String mediaType, String mediaProviderUri,
-                       String reason, int status, String title,
-                       long currentSizeBytes, long totalSizeBytes, String uri) {
-        try {
-            String localFileName = localUri;
-            int allowWriteInt = 1;
-            if (!allowWrite) allowWriteInt = 0;
-            Object[] bindArags = new Object[]{
-                    allowWriteInt, id, timeline,
-                    localFileName, localUri, mediaType, mediaProviderUri, reason,
-                    status, title, currentSizeBytes, totalSizeBytes, uri};
-            db.execSQL("INSERT INTO " + TABLE_NAME +
-                    " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", bindArags);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    public void insert(SQLiteDatabase db, long id, String url, String localUri, String title) {
-        insert(db, id, true, System.currentTimeMillis(),
-                localUri, null, null,
-                null, OkDownloadManager.STATUS_PENDING, title, 0, 0, url);
-    }
-
-    public void insert(long id, String uri, String localUri, String title, int status) {
-        SQLiteDatabase db = getWritableDatabase();
-
-        insert(db, id, true, System.currentTimeMillis(),
-                localUri, null, null,
-                null, status, title, 0, 0, uri);
-    }
-
-    public void insert(long id, String url, String localUri, String title) {
-        SQLiteDatabase db = getWritableDatabase();
-
-        insert(db, id, url, localUri, title);
     }
 
     public long insert(ContentValues values) {
@@ -172,6 +133,18 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         return id;
     }
 
+    /**
+     *
+     * @param values
+     * @param whereClause
+     * @param whereArgs
+     * @return the number of rows affected
+     */
+    public int update(ContentValues values, String whereClause, String[] whereArgs)  {
+        SQLiteDatabase db = getWritableDatabase();
+        return db.update(TABLE_NAME, values, whereClause, whereArgs);
+    }
+
     public void update(long id, int status, long totalSizeBytes) {
         SQLiteDatabase db = getWritableDatabase();
         db.beginTransaction();
@@ -180,7 +153,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
             String sql = "UPDATE " + TABLE_NAME + "\n" +
                     "SET status = ?,\n" +
-                    " total_size_bytes = ?\n" +
+                    " total_bytes = ?\n" +
                     "WHERE\n" +
                     "    _id = ?";
             Object[] args = new Object[]{status, totalSizeBytes, id};
@@ -251,7 +224,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     }
 
     public Cursor getCursorById(long id) {
-        String sql = "select _id, title, uri, local_uri, status from " + TABLE_NAME +
+        String sql = "select _id, title, uri, local_uri, status, total_bytes from " + TABLE_NAME +
                 " where _id = " + id;
 
         SQLiteDatabase db = getReadableDatabase();
@@ -263,7 +236,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
      * @return
      */
     public Cursor getCursorByPause() {
-        String sql = "select _id, title, uri, local_uri from " + TABLE_NAME +
+        String sql = "select _id, title, uri, local_uri, total_bytes from " + TABLE_NAME +
                 " where status = " + OkDownloadManager.STATUS_PAUSED;
 
         SQLiteDatabase db = getReadableDatabase();

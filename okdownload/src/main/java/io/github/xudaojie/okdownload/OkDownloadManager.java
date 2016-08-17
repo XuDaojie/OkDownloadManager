@@ -44,18 +44,15 @@ public class OkDownloadManager {
     public static final String COLUMN_DESCRIPTION = "description";
     public static final String COLUMN_ID = "_id";
     public static final String COLUMN_LAST_MODIFIED_TIMESTAMP = "last_modified_timestamp";
-    /**
-     * @deprecated
-     */
-    @Deprecated
-    public static final String COLUMN_LOCAL_FILENAME = "local_filename"; // 本地文件路径
+
     public static final String COLUMN_LOCAL_URI = "local_uri"; // 本地文件路径
     public static final String COLUMN_MEDIAPROVIDER_URI = "mediaprovider_uri";
     public static final String COLUMN_MEDIA_TYPE = "media_type";
     public static final String COLUMN_REASON = "reason";
     public static final String COLUMN_STATUS = "status";
     public static final String COLUMN_TITLE = "title";
-    public static final String COLUMN_TOTAL_SIZE_BYTES = "total_size";
+    public static final String COLUMN_TOTAL_SIZE_BYTES = "total_bytes";
+    public static final String COLUMN_CURRENT_SIZE_BYTES = "current_bytes";
     public static final String COLUMN_URI = "uri";
     public static final int ERROR_CANNOT_RESUME = 1008;
     public static final int ERROR_DEVICE_NOT_FOUND = 1007;

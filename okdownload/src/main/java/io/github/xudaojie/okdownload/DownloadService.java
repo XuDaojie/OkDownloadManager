@@ -69,27 +69,36 @@ public class DownloadService extends Service {
                                         public void update(long bytesRead, long contentLength, boolean done) {
                                             Log.d(TAG, bytesRead + "/" + contentLength);
 
-                                            int percent = (int) ((float) bytesRead / contentLength * 100);
+                                            long id = 0;
+                                            String title = "";
+                                            String filePath = "";
+                                            long totalSizeBytes = 0;
+                                            long currentSizeBytes = 0;
+
+                                            if (tagMap != null && tagMap.get(OkDownloadManager.COLUMN_ID) != null) {
+                                                id = (long) tagMap.get(OkDownloadManager.COLUMN_ID);
+                                                title = (String) tagMap.get(OkDownloadManager.COLUMN_TITLE);
+                                                filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
+                                                totalSizeBytes = (long) tagMap.get(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES);
+                                                currentSizeBytes = (long) tagMap.get(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES);
+                                            }
+
+                                            currentSizeBytes += bytesRead;
+                                            if (totalSizeBytes == 0) {
+                                                totalSizeBytes = contentLength;
+                                            }
+
+                                            int percent = (int) ((float) currentSizeBytes / totalSizeBytes * 100);
                                             // 广播接收也是在主界面执行的,全部发送的话会造成系统卡顿
                                             long currentTimeline = System.currentTimeMillis();
                                             if ((currentTimeline - mTimeline > 600 && mPercent != percent)
                                                     || done) {
-                                                long id = 0;
-                                                String title = "";
-                                                String filePath = "";
-
                                                 mTimeline = currentTimeline;
                                                 mPercent = percent;
                                                 Log.d(TAG, percent + "%");
                                                 if (done) {
                                                     mPercent = -1;
                                                     Log.d(TAG, "download done; url: " + url);
-                                                }
-
-                                                if (tagMap != null && tagMap.get(OkDownloadManager.COLUMN_ID) != null) {
-                                                    id = (long) tagMap.get(OkDownloadManager.COLUMN_ID);
-                                                    title = (String) tagMap.get(OkDownloadManager.COLUMN_TITLE);
-                                                    filePath = (String) tagMap.get(OkDownloadManager.COLUMN_LOCAL_URI);
                                                 }
 
                                                 Intent i = new Intent();
@@ -99,7 +108,8 @@ public class DownloadService extends Service {
                                                 i.putExtra(OkDownloadManager.COLUMN_ID, id);
                                                 i.putExtra(OkDownloadManager.COLUMN_TITLE, title);
                                                 i.putExtra(OkDownloadManager.COLUMN_LOCAL_URI, filePath);
-                                                i.putExtra(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, contentLength);
+                                                i.putExtra(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, totalSizeBytes);
+                                                i.putExtra(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES, currentSizeBytes);
 
                                                 // 必须也使用LocalBroadcastReceiver进行注册才能接收
                                                 mBroadcastManager.sendBroadcast(i);
@@ -163,36 +173,14 @@ public class DownloadService extends Service {
             String url = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_URI));
             String title = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_TITLE));
             String localUri = taskCursor.getString(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_LOCAL_URI));
+            long totalSizeBytes = taskCursor.getLong(taskCursor.getColumnIndex(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES));
 
             File file = new File(localUri + TEMP_SUFFIX);
             long pos = 0;
             if (file.exists()) {
                 pos = file.length();
             }
-            // TODO: 16/8/16 notification Id 为int downloadId 为long 有冲突
-            download(id, url, title, localUri, pos);
-
-//            int downloadType = intent.getIntExtra(DOWNLOAD_TYPE, DOWNLOAD_MODE_NEW_TASK);
-//            if (downloadType != DOWNLOAD_MODE_CONTINUE) {
-//                String fileName = intent.getStringExtra(OkDownloadManager.FILENAME);
-//                int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
-//                String url = intent.getStringExtra(OkDownloadManager.COLUMN_URI);
-//                String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
-//                String filePath = Environment.getExternalStorageDirectory() + "/Download/" + fileName;
-//
-//                filePath = FileUtils.checkOrCreateFileName(filePath, 0);
-//
-//                download(id, url, title, filePath, 0);
-//            } else {
-//                int id = intent.getIntExtra(OkDownloadManager.COLUMN_ID, 0);
-//                String url = intent.getStringExtra(OkDownloadManager.COLUMN_URI);
-//                String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
-//                String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
-//
-//                File file = new File(filePath + TEMP_SUFFIX);
-//
-//                download(id, url, title, filePath, file.length());
-//            }
+            download(id, url, title, localUri, totalSizeBytes, pos);
         } else {
             // 服务尚未停止Apk被回收,会再度启动Service
             NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -233,9 +221,10 @@ public class DownloadService extends Service {
      * @param url
      * @param title
      * @param filePath
-     * @param pos      从文件流的指定位置开始下载
-     */    public void download(final long id, String url, final String title, final String filePath,
-                         final long pos) {
+     * @param pos 从文件流的指定位置开始下载
+     */
+    public void download(final long id, String url, final String title, final String filePath,
+                         long totalSizeBytes, final long pos) {
         NotificationUtils.showPending(mContext, title, (int) id);
 
         okhttp3.Request request = new okhttp3.Request.Builder()
@@ -243,11 +232,14 @@ public class DownloadService extends Service {
                 .url(url)
                 .get()
                 .build();
+
         Map<String, Object> tags = new HashMap<>();
         tags.put(OkDownloadManager.ORIGIN_TAG, request.tag());
         tags.put(OkDownloadManager.COLUMN_ID, id);
         tags.put(OkDownloadManager.COLUMN_TITLE, title);
         tags.put(OkDownloadManager.COLUMN_LOCAL_URI, filePath);
+        tags.put(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, totalSizeBytes);
+        tags.put(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES, pos);
         request = request.newBuilder()
                 .tag(tags)
                 .build();

@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v4.app.NotificationCompat;
@@ -37,11 +38,13 @@ public class OkDownloadReceiver extends BroadcastReceiver {
         long id = intent.getLongExtra(OkDownloadManager.COLUMN_ID, 0);
         String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
         String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
+        long totalSizeBytes = intent.getLongExtra(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, 0);
+        long currentSizeBytes = intent.getLongExtra(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES, 0);
+        int percent = intent.getIntExtra(OkDownloadManager.DOWNLOAD_PERCENT, 0);
+        Log.d(TAG, percent + "%");
 
         if (TextUtils.equals(OkDownloadManager.ACTION_DOWNLOAD, action)) {
-            int percent = intent.getIntExtra(OkDownloadManager.DOWNLOAD_PERCENT, 0);
-            long totalSizeBytes = intent.getLongExtra(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, 0);
-            Log.d(TAG, percent + "%");
+
 
             if (percent != 100) {
                 notification = new NotificationCompat.Builder(context)
@@ -53,7 +56,13 @@ public class OkDownloadReceiver extends BroadcastReceiver {
                         .build();
 
                 if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
-                    sqLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, totalSizeBytes);
+                    ContentValues values = new ContentValues();
+                    values.put(OkDownloadManager.COLUMN_STATUS, OkDownloadManager.STATUS_RUNNING);
+                    values.put(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, totalSizeBytes);
+                    values.put(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES, currentSizeBytes);
+                    sqLiteHelper.update(values, OkDownloadManager.COLUMN_ID + "= ?",
+                            new String[] {id + ""});
+//                    sqLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, totalSizeBytes);
                 }
             } else {
                 Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
