@@ -1,7 +1,5 @@
 package io.github.xudaojie.okdownload;
 
-import android.app.Notification;
-import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -32,7 +30,6 @@ public class OkDownloadReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(context);
         String action = intent.getAction();
-        Notification notification = null;
 
         long id = intent.getLongExtra(OkDownloadManager.COLUMN_ID, 0);
         String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
@@ -45,7 +42,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
         if (TextUtils.equals(OkDownloadManager.ACTION_DOWNLOAD, action)) {
 
             if (percent != 100) {
-                NotificationUtils.showRunning(context, (int) id, title, percent, intent.getExtras());
+                NotificationUtils.showRunning(context, id, title, percent, intent.getExtras());
 
                 if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
                     ContentValues values = new ContentValues();
@@ -56,7 +53,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
                             new String[] {id + ""});
                 }
             } else {
-                NotificationUtils.showCompleted(context, (int) id, title, intent.getExtras());
+                NotificationUtils.showCompleted(context, id, title, intent.getExtras());
 
                 // 修改文件名为正确文件名
                 File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
@@ -69,16 +66,11 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 //        notification.flags = Notification.FLAG_AUTO_CANCEL;
 
         } else if (TextUtils.equals(OkDownloadManager.ACTION_DOWNLOAD_FAIL, action)) {
-            NotificationUtils.showPaused(context, (int) id, title, intent.getExtras());
+            NotificationUtils.showPaused(context, id, title, intent.getExtras());
 
             if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_PAUSED) {
                 sqLiteHelper.update(id, OkDownloadManager.STATUS_PAUSED);
             }
-        }
-
-        if (notification != null) {
-            NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-            manager.notify((int) id, notification); // TODO: 16/8/17 notification id智能为int
         }
     }
 }

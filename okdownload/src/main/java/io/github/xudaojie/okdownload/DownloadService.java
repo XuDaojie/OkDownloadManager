@@ -225,7 +225,7 @@ public class DownloadService extends Service {
      */
     public void download(final long id, String url, final String title, final String filePath,
                          long totalSizeBytes, final long pos) {
-        NotificationUtils.showPending(mContext, title, (int) id);
+        NotificationUtils.showPending(mContext, title, id);
 
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .addHeader("Range", "bytes=" + pos + "-")

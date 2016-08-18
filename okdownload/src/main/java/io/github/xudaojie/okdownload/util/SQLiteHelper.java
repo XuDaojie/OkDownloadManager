@@ -97,7 +97,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
 
         String sql = "CREATE TABLE " + TABLE_NAME + "(\n" +
                 "       allow_write Boolean,\n" +
-                "       _id integer NOT NULL,\n" +
+                "       _id integer PRIMARY KEY AUTOINCREMENT,\n" +
                 "       last_modify_timestamp integer,\n" +
                 "       local_filename varchar,\n" +
                 "       local_uri varchar,\n" +
@@ -112,8 +112,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
                 "       visibility integer,\n" +
                 "       uri varchar,\n" +
                 "       etag varchar,\n" +
-                "       error_msg varchar,\n" +
-                "       PRIMARY KEY(_id)\n" +
+                "       error_msg varchar\n" +
                 ")";
 
         db.execSQL(sql);
@@ -126,6 +125,7 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         if (url == null) {
             throw new IllegalArgumentException("Unknown URL " + url);
         }
+//        long id = db.insert(TABLE_NAME, null, values);
         long id = System.currentTimeMillis();
         values.put(OkDownloadManager.COLUMN_ID, id);
         db.insert(TABLE_NAME, null, values);

@@ -4,11 +4,9 @@ import android.app.DownloadManager;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Environment;
-import android.util.Log;
 import android.util.Pair;
 
 import java.io.File;
@@ -97,26 +95,10 @@ public class OkDownloadManager {
         context.startService(i);
     }
 
-    public static void download(Context context, int id) {
-        SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(context);
-
-        // TODO: 16/8/10 检查当前未下载完成的链接
-        Cursor cursor = sqLiteHelper.getCursorByPause();
-        cursor.moveToFirst();
-
-        String title = cursor.getString(1);
-        String uri = cursor.getString(2);
-        String localUri = cursor.getString(3);
-        Log.d(TAG, "Title " + title + " Uri " + uri + " localUri " + localUri);
-
-//            download(id, uri, title, localUri, file.length());
-        Intent i = new Intent(context, OkDownloadManager.class);
-        i.putExtra(COLUMN_ID, id);
-        i.putExtra(COLUMN_URI, uri);
-        i.putExtra(COLUMN_TITLE, title);
-        i.putExtra(COLUMN_LOCAL_URI, localUri);
-        i.putExtra(DOWNLOAD_TYPE, DOWNLOAD_MODE_CONTINUE);
-        context.startService(i);
+    public static void download(Context context, long id) {
+        OkDownloadManager downloadManager = OkDownloadManager.getInstance(context);
+        OkDownloadManager.Request request = new OkDownloadManager.Request(id);
+        downloadManager.enqueue(request);
     }
 
     public OkDownloadManager(Context context) {
@@ -133,10 +115,10 @@ public class OkDownloadManager {
      * calls related to this download.
      */
     public long enqueue(Request request) {
-        ContentValues values = request.toContentValues();
-
         long id = request.getDwonloadId();
+
         if (request.getDwonloadId() == 0) {
+            ContentValues values = request.toContentValues();
             id = mSQLiteHelper.insert(values);
         }
 
@@ -207,6 +189,14 @@ public class OkDownloadManager {
                 throw new IllegalArgumentException("Can only download HTTP/HTTPS URIs: " + uri);
             }
             mUri = uri;
+        }
+
+        /**
+         * 继续之前的下载
+         * @param downloadId
+         */
+        public Request(long downloadId) {
+            mDownloadId = downloadId;
         }
 
         Request(String uriString) {
@@ -360,14 +350,6 @@ public class OkDownloadManager {
 
         public long getDwonloadId() {
             return mDownloadId;
-        }
-
-        /**
-         * 之前下载记录的id,设置此属性后会先寻找原记录继续下载
-         * @param downloadId
-         */
-        public void setDownloadId(long downloadId) {
-            mDownloadId = downloadId;
         }
 
         /**

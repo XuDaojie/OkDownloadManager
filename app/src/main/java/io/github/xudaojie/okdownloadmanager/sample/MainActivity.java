@@ -55,10 +55,8 @@ public class MainActivity extends AppCompatActivity {
 
                     if (mDownloadId != 0) {
                         OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);
-                        OkDownloadManager.Request request = new OkDownloadManager.Request(Uri.parse(url));
+                        OkDownloadManager.Request request = new OkDownloadManager.Request(mDownloadId);
 //                    request.setDownloadId(1471414784822L); //1471418684819L
-                        request.setDownloadId(mDownloadId); //1471418684819L
-
                         downloadManager.enqueue(request);
                     } else {
                         OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);

@@ -19,7 +19,7 @@ import static io.github.xudaojie.okdownload.OkDownloadManager.COLUMN_ID;
  */
 
 public class NotificationUtils {
-    public static void showPending(Context context, String title, int id) {
+    public static void showPending(Context context, String title, long id) {
         // todo 未完成时点击需暂停下载
         Intent i = new Intent(context, NotificationClickReceiver.class);
         i.setAction(ACTION_NOTIFICATION_CLICKED);
@@ -39,10 +39,10 @@ public class NotificationUtils {
                 .build();
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(id, notification);
+        manager.notify((int) id, notification);
     }
 
-    public static void showRunning(Context context, int id, String title, int percent, Bundle args) {
+    public static void showRunning(Context context, long id, String title, int percent, Bundle args) {
         Notification notification = new NotificationCompat.Builder(context)
                 .setContentTitle(title)
                 .setContentText("已下载:" + percent + "%")
@@ -52,10 +52,10 @@ public class NotificationUtils {
                 .build();
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(id, notification);
+        manager.notify((int) id, notification);
     }
 
-    public static void showPaused(Context context, int id, String title, Bundle args) {
+    public static void showPaused(Context context, long id, String title, Bundle args) {
         // todo 未完成时点击需暂停下载
         Intent i = new Intent(context, NotificationClickReceiver.class);
         i.setAction(ACTION_NOTIFICATION_CLICKED);
@@ -69,16 +69,16 @@ public class NotificationUtils {
         Notification notification = new NotificationCompat.Builder(context)
                 .setContentTitle(title)
                 .setContentText("点击继续下载")
-                .setSmallIcon(android.R.drawable.stat_sys_download_done) // 必须设置
+                .setSmallIcon(android.R.drawable.ic_media_pause) // 必须设置
                 .setContentIntent(pendingIntent) // 指定点击事件对应的pendingIntent
 //                .addAction(android.R.mipmap.sym_def_app_icon, "确定", pendingIntent)
                 .build();
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(id, notification);
+        manager.notify((int) id, notification);
     }
 
-    public static void showCompleted(Context context, int id, String title, Bundle args) {
+    public static void showCompleted(Context context, long id, String title, Bundle args) {
         Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
         receiverIntent.setAction(OkDownloadManager.ACTION_NOTIFICATION_CLICKED);
         receiverIntent.putExtras(args);
@@ -93,6 +93,6 @@ public class NotificationUtils {
                 .build();
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(id, notification);
+        manager.notify((int) id, notification);
     }
 }

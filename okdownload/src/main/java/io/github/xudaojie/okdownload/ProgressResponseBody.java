@@ -66,6 +66,7 @@ class ProgressResponseBody extends ResponseBody {
                 } catch (IOException e) {
                     e.printStackTrace();
                     mProgressListener.onFailure(e);
+                    return bytesRead;
                 }
                 // 增加当前读取的字节数，如果读取完成了bytesRead会返回-1
                 totalBytesRead += bytesRead != -1 ? bytesRead : 0;
