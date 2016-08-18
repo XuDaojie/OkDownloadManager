@@ -35,7 +35,7 @@ public class SystemUtils {
      * @param context 上下文
      * @return 结果
      */
-    public boolean isWifiConnected(Context context) {
+    public static boolean isWifiConnected(Context context) {
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
             NetworkInfo networkInfo = cm.getActiveNetworkInfo();
@@ -53,7 +53,7 @@ public class SystemUtils {
      * @param context 上下文
      * @return 结果
      */
-    public boolean isMobileConnected(Context context) {
+    public static boolean isMobileConnected(Context context) {
         ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
             NetworkInfo networkInfo = cm.getActiveNetworkInfo();

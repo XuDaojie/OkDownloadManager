@@ -63,22 +63,6 @@ public class SQLiteHelper extends SQLiteOpenHelper {
         db.enableWriteAheadLogging();
     }
 
-//    public static SQLiteDatabase getDatabase(Context context) {
-//        if (sDatabase == null) {
-//            sDatabase = SQLiteDatabase.openOrCreateDatabase(
-//                    context.getFilesDir() + "/" + DATABASE_NAME, null);
-//        } else if (!sDatabase.isOpen()) {
-//            sDatabase = SQLiteDatabase.openDatabase(context.getFilesDir() + "/databases/" + DATABASE_NAME, null,
-//                    SQLiteDatabase.OPEN_READWRITE);
-//        }
-//
-//        if (!tableExist(sDatabase)) {
-//            createTable(sDatabase);
-//        }
-//
-//        return sDatabase;
-//    }
-
     /**
      * 检查表是否已存在
      */
@@ -197,6 +181,12 @@ public class SQLiteHelper extends SQLiteOpenHelper {
                 OkDownloadManager.STATUS_RUNNING});
     }
 
+    public Cursor query(String[] columns, String selection, String[] selectionArgs) {
+        SQLiteDatabase db = getReadableDatabase();
+
+        return db.query(TABLE_NAME, columns, selection, selectionArgs, null, null, null);
+    }
+
     public int getStatus(long id) {
         SQLiteDatabase db = getReadableDatabase();
         Cursor cursor = db.rawQuery("select " + OkDownloadManager.COLUMN_STATUS + " from " + TABLE_NAME + " where _id = ?",
@@ -226,6 +216,22 @@ public class SQLiteHelper extends SQLiteOpenHelper {
     public Cursor getCursorById(long id) {
         String sql = "select _id, title, uri, local_uri, status, total_bytes from " + TABLE_NAME +
                 " where _id = " + id;
+
+        SQLiteDatabase db = getReadableDatabase();
+        return db.rawQuery(sql, null);
+    }
+
+    public Cursor getCursorByRunning() {
+        String sql = "select _id, title, uri, local_uri, total_bytes from " + TABLE_NAME +
+                " where status = " + OkDownloadManager.STATUS_RUNNING;
+
+        SQLiteDatabase db = getReadableDatabase();
+        return db.rawQuery(sql, null);
+    }
+
+    public Cursor getCursorByPending() {
+        String sql = "select _id, title, uri, local_uri, total_bytes from " + TABLE_NAME +
+                " where status = " + OkDownloadManager.STATUS_PENDING;
 
         SQLiteDatabase db = getReadableDatabase();
         return db.rawQuery(sql, null);

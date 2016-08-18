@@ -157,6 +157,12 @@ public class DownloadService extends Service {
             filter.addAction(ACTION_DOWNLOAD);
             filter.addAction(ACTION_DOWNLOAD_FAIL);
             mBroadcastManager.registerReceiver(okHttpReceiver, filter);
+
+            // TODO: 16/8/18 注销广播 Android N无效 只能静态注册?
+//            NetworkTypeReceiver networkTypeReceiver = new NetworkTypeReceiver();
+//            IntentFilter networkFilter = new IntentFilter();
+//            filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+//            mBroadcastManager.registerReceiver(networkTypeReceiver, networkFilter);
         }
     }
 

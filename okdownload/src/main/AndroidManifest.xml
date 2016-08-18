@@ -8,6 +8,11 @@
 
         <service android:name=".DownloadService"/>
         <receiver android:name=".NotificationClickReceiver"/>
+        <receiver android:name=".NetworkTypeReceiver">
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -48,9 +48,9 @@ public class MainActivity extends AppCompatActivity {
                     }
                 } else {
                     // 5M
-                    String url = "http://pkg3.fir.im/71da3de01a28cff3f9884ada102e22fdbadaab35.apk?attname=app-release.apk_1.0.apk";
+//                    String url = "http://pkg3.fir.im/71da3de01a28cff3f9884ada102e22fdbadaab35.apk?attname=app-release.apk_1.0.apk";
                     // 33M
-//                    String url = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
+                    String url = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
 //                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
 
                     if (mDownloadId != 0) {
