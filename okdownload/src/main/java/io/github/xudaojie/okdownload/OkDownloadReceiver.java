@@ -32,6 +32,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
         String action = intent.getAction();
 
         long id = intent.getLongExtra(OkDownloadManager.COLUMN_ID, 0);
+        int status = intent.getIntExtra(OkDownloadManager.COLUMN_STATUS, 0);
         String title = intent.getStringExtra(OkDownloadManager.COLUMN_TITLE);
         String filePath = intent.getStringExtra(OkDownloadManager.COLUMN_LOCAL_URI);
         long totalSizeBytes = intent.getLongExtra(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, 0);
@@ -41,27 +42,34 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 
         if (TextUtils.equals(OkDownloadManager.ACTION_DOWNLOAD, action)) {
 
-            if (percent != 100) {
-                NotificationUtils.showRunning(context, id, title, percent, intent.getExtras());
+            if (status == 0 || status == 200) {
+                if (percent != 100) {
+                    NotificationUtils.showRunning(context, id, title, percent, intent.getExtras());
 
-                if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
-                    ContentValues values = new ContentValues();
-                    values.put(OkDownloadManager.COLUMN_STATUS, OkDownloadManager.STATUS_RUNNING);
-                    values.put(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, totalSizeBytes);
-                    values.put(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES, currentSizeBytes);
-                    sqLiteHelper.update(values, OkDownloadManager.COLUMN_ID + "= ?",
-                            new String[] {id + ""});
+                    if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
+                        ContentValues values = new ContentValues();
+                        values.put(OkDownloadManager.COLUMN_STATUS, OkDownloadManager.STATUS_RUNNING);
+                        values.put(OkDownloadManager.COLUMN_TOTAL_SIZE_BYTES, totalSizeBytes);
+                        values.put(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES, currentSizeBytes);
+                        sqLiteHelper.update(values, OkDownloadManager.COLUMN_ID + "= ?",
+                                new String[]{id + ""});
+                    }
+                } else {
+                    NotificationUtils.showCompleted(context, id, title, intent.getExtras());
+
+                    // 修改文件名为正确文件名
+                    File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
+                    currentFile.renameTo(new File(filePath));
+
+                    sqLiteHelper.update(id, OkDownloadManager.STATUS_SUCCESSFUL, totalSizeBytes);
+                    // TODO: 16/8/8 继续下一个下载
+                    FileUtils.installApk(context, filePath);
                 }
             } else {
-                NotificationUtils.showCompleted(context, id, title, intent.getExtras());
-
-                // 修改文件名为正确文件名
-                File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
-                currentFile.renameTo(new File(filePath));
-
-                sqLiteHelper.update(id, OkDownloadManager.STATUS_SUCCESSFUL, totalSizeBytes);
-                // TODO: 16/8/8 继续下一个下载
-                FileUtils.installApk(context, filePath);
+                if (status == OkDownloadManager.STATUS_WAITING_FOR_NETWORK) {
+                    NotificationUtils.showWaitingForNetwork(context, title, id);
+                }
+                sqLiteHelper.update(id, status);
             }
 //        notification.flags = Notification.FLAG_AUTO_CANCEL;
 

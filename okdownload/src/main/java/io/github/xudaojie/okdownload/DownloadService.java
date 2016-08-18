@@ -19,6 +19,7 @@ import java.util.Map;
 import io.github.xudaojie.okdownload.util.FileUtils;
 import io.github.xudaojie.okdownload.util.NotificationUtils;
 import io.github.xudaojie.okdownload.util.SQLiteHelper;
+import io.github.xudaojie.okdownload.util.SystemUtils;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Interceptor;
@@ -27,6 +28,9 @@ import okhttp3.Response;
 
 import static io.github.xudaojie.okdownload.OkDownloadManager.ACTION_DOWNLOAD;
 import static io.github.xudaojie.okdownload.OkDownloadManager.ACTION_DOWNLOAD_FAIL;
+import static io.github.xudaojie.okdownload.OkDownloadManager.COLUMN_ID;
+import static io.github.xudaojie.okdownload.OkDownloadManager.COLUMN_STATUS;
+import static io.github.xudaojie.okdownload.OkDownloadManager.COLUMN_TITLE;
 import static io.github.xudaojie.okdownload.OkDownloadManager.TEMP_SUFFIX;
 
 /**
@@ -244,19 +248,29 @@ public class DownloadService extends Service {
                 .tag(tags)
                 .build();
 
-        mHttpClient.newCall(request)
-                .enqueue(new Callback() {
-                    @Override
-                    public void onFailure(Call call, IOException e) {
-                        mSQLiteHelper.update(id, OkDownloadManager.STATUS_FAILED, 0);
-                    }
+        if (!SystemUtils.isNetConnected(mContext)) {
+            Intent i = new Intent();
+            i.setAction(OkDownloadManager.ACTION_DOWNLOAD);
+            i.putExtra(COLUMN_ID, id);
+            i.putExtra(COLUMN_STATUS, OkDownloadManager.STATUS_WAITING_FOR_NETWORK);
+            i.putExtra(COLUMN_TITLE, title);
+            // TODO: 16/8/18 将其他参数也传入
+            mBroadcastManager.sendBroadcast(i);
+        } else {
+            mHttpClient.newCall(request)
+                    .enqueue(new Callback() {
+                        @Override
+                        public void onFailure(Call call, IOException e) {
+                            mSQLiteHelper.update(id, OkDownloadManager.STATUS_FAILED, 0);
+                        }
 
-                    @Override
-                    public void onResponse(Call call, Response response) throws IOException {
-                        Log.d(TAG, "onResponse");
-                        FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream(), pos);
-                    }
-                });
+                        @Override
+                        public void onResponse(Call call, Response response) throws IOException {
+                            Log.d(TAG, "onResponse");
+                            FileUtils.save(filePath + TEMP_SUFFIX, response.body().byteStream(), pos);
+                        }
+                    });
+        }
     }
 
 }

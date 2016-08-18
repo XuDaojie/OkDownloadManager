@@ -19,6 +19,13 @@ import static io.github.xudaojie.okdownload.OkDownloadManager.COLUMN_ID;
  */
 
 public class NotificationUtils {
+
+    /**
+     * 有网络状态下等待
+     * @param context
+     * @param title
+     * @param id
+     */
     public static void showPending(Context context, String title, long id) {
         // todo 未完成时点击需暂停下载
         Intent i = new Intent(context, NotificationClickReceiver.class);
@@ -49,6 +56,35 @@ public class NotificationUtils {
                 .setProgress(100, percent, false)
                 .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
 //                .setContentIntent(pendingIntent)
+                .build();
+
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        manager.notify((int) id, notification);
+    }
+
+    /**
+     * 等待网络连接
+     * @param context
+     * @param title
+     * @param id
+     */
+    public static void showWaitingForNetwork(Context context, String title, long id) {
+        // todo 未完成时点击需暂停下载
+        Intent i = new Intent(context, NotificationClickReceiver.class);
+        i.setAction(ACTION_NOTIFICATION_CLICKED);
+        i.putExtra(COLUMN_ID, id);
+//        PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, i, PendingIntent.FLAG_UPDATE_CURRENT);
+        // 广播必须在Manifest里注册,代码注册无效
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, i, PendingIntent.FLAG_ONE_SHOT);
+
+        // Notification.Builder.build() 在Api16中才开始支持
+        Notification notification = new NotificationCompat.Builder(context)
+                .setContentTitle(title)
+                .setContentText("已加入队列")
+                .setProgress(100, 0, true)
+                .setSmallIcon(android.R.drawable.ic_media_pause) // 必须设置
+                .setContentIntent(pendingIntent) // 指定点击事件对应的pendingIntent
+//                .addAction(android.R.mipmap.sym_def_app_icon, "确定", pendingIntent)
                 .build();
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);

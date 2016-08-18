@@ -74,6 +74,11 @@ public class OkDownloadManager {
     public static final int STATUS_RUNNING = 2;
     public static final int STATUS_SUCCESSFUL = 8;
 
+    /**
+     * This download is waiting for network connectivity to proceed.
+     */
+    public static final int STATUS_WAITING_FOR_NETWORK = 195;
+
     private static final String TAG = "OkDownloadManager";
 
     private Context mContext;
