@@ -19,7 +19,7 @@ public class FileUtils {
 
     private static final String TAG = "FileUtils";
 
-    public static final void installApk(Context context, String apkPath) {
+    public static void installApk(Context context, String apkPath) {
         String filePath = apkPath;
         //如果文件名不为空，说明已经存在了，然后获取uri，进行安装
         File path = new File(filePath);

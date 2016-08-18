@@ -2,18 +2,17 @@ package io.github.xudaojie.okdownload;
 
 import android.app.Notification;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.support.v4.app.NotificationCompat;
 import android.text.TextUtils;
 import android.util.Log;
 
 import java.io.File;
 
 import io.github.xudaojie.okdownload.util.FileUtils;
+import io.github.xudaojie.okdownload.util.NotificationUtils;
 import io.github.xudaojie.okdownload.util.SQLiteHelper;
 
 /**
@@ -45,15 +44,8 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 
         if (TextUtils.equals(OkDownloadManager.ACTION_DOWNLOAD, action)) {
 
-
             if (percent != 100) {
-                notification = new NotificationCompat.Builder(context)
-                        .setContentTitle(title)
-                        .setContentText("已下载:" + percent + "%")
-                        .setProgress(100, percent, false)
-                        .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
-//                .setContentIntent(pendingIntent)
-                        .build();
+                NotificationUtils.showRunning(context, (int) id, title, percent, intent.getExtras());
 
                 if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_RUNNING) {
                     ContentValues values = new ContentValues();
@@ -62,21 +54,9 @@ public class OkDownloadReceiver extends BroadcastReceiver {
                     values.put(OkDownloadManager.COLUMN_CURRENT_SIZE_BYTES, currentSizeBytes);
                     sqLiteHelper.update(values, OkDownloadManager.COLUMN_ID + "= ?",
                             new String[] {id + ""});
-//                    sqLiteHelper.update(id, OkDownloadManager.STATUS_RUNNING, totalSizeBytes);
                 }
             } else {
-                Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
-                receiverIntent.setAction(OkDownloadManager.ACTION_NOTIFICATION_CLICKED);
-                receiverIntent.putExtras(intent.getExtras());
-                PendingIntent pendingIntent = PendingIntent
-                        .getBroadcast(context, 0, receiverIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-                notification = new NotificationCompat.Builder(context)
-                        .setContentTitle(title)
-                        .setContentText("点击进行安装")
-                        .setSmallIcon(android.R.drawable.stat_sys_download_done) // 必须设置
-                        .setContentIntent(pendingIntent)
-                        .build();
+                NotificationUtils.showCompleted(context, (int) id, title, intent.getExtras());
 
                 // 修改文件名为正确文件名
                 File currentFile = new File(filePath + OkDownloadManager.TEMP_SUFFIX);
@@ -89,18 +69,7 @@ public class OkDownloadReceiver extends BroadcastReceiver {
 //        notification.flags = Notification.FLAG_AUTO_CANCEL;
 
         } else if (TextUtils.equals(OkDownloadManager.ACTION_DOWNLOAD_FAIL, action)) {
-            Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
-            receiverIntent.setAction(OkDownloadManager.ACTION_NOTIFICATION_CLICKED);
-            receiverIntent.putExtras(intent.getExtras());
-            PendingIntent pendingIntent = PendingIntent
-                    .getBroadcast(context, 0, receiverIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-            notification = new NotificationCompat.Builder(context)
-                    .setContentTitle(title)
-                    .setContentText("点击继续下载")
-                    .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
-                    .setContentIntent(pendingIntent)
-                    .build();
+            NotificationUtils.showPaused(context, (int) id, title, intent.getExtras());
 
             if (sqLiteHelper.getStatus(id) != OkDownloadManager.STATUS_PAUSED) {
                 sqLiteHelper.update(id, OkDownloadManager.STATUS_PAUSED);
