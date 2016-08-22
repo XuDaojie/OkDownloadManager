@@ -1,14 +1,20 @@
 package io.github.xudaojie.okdownload.util;
 
+import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.os.Bundle;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 import io.github.xudaojie.okdownload.NotificationClickReceiver;
 import io.github.xudaojie.okdownload.OkDownloadManager;
@@ -23,6 +29,9 @@ import static io.github.xudaojie.okdownload.OkDownloadManager.COLUMN_ID;
 public class NotificationUtils {
 
     private static final String TAG = "NotificationUtils";
+
+    private static final String CHECK_OP_NO_THROW = "checkOpNoThrow";
+    private static final String OP_POST_NOTIFICATION = "OP_POST_NOTIFICATION";
 
     /**
      * 有网络状态下等待
@@ -53,12 +62,16 @@ public class NotificationUtils {
                 .setContentIntent(pendingIntent) // 指定点击事件对应的pendingIntent
 //                .addAction(android.R.mipmap.sym_def_app_icon, "确定", pendingIntent)
                 .build();
+        notification.flags |= Notification.FLAG_NO_CLEAR;
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify((int) id, notification);
     }
 
     public static void showRunning(Context context, long id, String title, int percent, Bundle args) {
+        /**
+         * 返回应用信息中是否允许显示通知,对国内ROM自己的Notification细分出的通知栏、锁屏权限没卵用
+         */
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
             Log.d(TAG, "Notifications Enabled are false");
             return;
@@ -71,6 +84,7 @@ public class NotificationUtils {
                 .setSmallIcon(android.R.drawable.stat_sys_download) // 必须设置
 //                .setContentIntent(pendingIntent)
                 .build();
+        notification.flags |= Notification.FLAG_NO_CLEAR;
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify((int) id, notification);
@@ -105,6 +119,7 @@ public class NotificationUtils {
                 .setContentIntent(pendingIntent) // 指定点击事件对应的pendingIntent
 //                .addAction(android.R.mipmap.sym_def_app_icon, "确定", pendingIntent)
                 .build();
+        notification.flags |= Notification.FLAG_NO_CLEAR;
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify((int) id, notification);
@@ -133,6 +148,7 @@ public class NotificationUtils {
                 .setContentIntent(pendingIntent) // 指定点击事件对应的pendingIntent
 //                .addAction(android.R.mipmap.sym_def_app_icon, "确定", pendingIntent)
                 .build();
+        notification.flags |= Notification.FLAG_NO_CLEAR;
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify((int) id, notification);
@@ -159,5 +175,42 @@ public class NotificationUtils {
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify((int) id, notification);
+    }
+
+    public static boolean isNotificationEnabled(Context context) {
+
+        AppOpsManager mAppOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+
+        ApplicationInfo appInfo = context.getApplicationInfo();
+
+        String pkg = context.getApplicationContext().getPackageName();
+
+        int uid = appInfo.uid;
+
+        Class appOpsClass = null; /* Context.APP_OPS_MANAGER */
+
+        try {
+
+            appOpsClass = Class.forName(AppOpsManager.class.getName());
+
+            Method checkOpNoThrowMethod = appOpsClass.getMethod(CHECK_OP_NO_THROW, Integer.TYPE, Integer.TYPE, String.class);
+
+            Field opPostNotificationValue = appOpsClass.getDeclaredField(OP_POST_NOTIFICATION);
+            int value = (int)opPostNotificationValue.get(Integer.class);
+
+            return ((int)checkOpNoThrowMethod.invoke(mAppOps,value, uid, pkg) == AppOpsManager.MODE_ALLOWED);
+
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }
