@@ -7,6 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
+import android.util.Log;
 
 import io.github.xudaojie.okdownload.NotificationClickReceiver;
 import io.github.xudaojie.okdownload.OkDownloadManager;
@@ -20,6 +22,8 @@ import static io.github.xudaojie.okdownload.OkDownloadManager.COLUMN_ID;
 
 public class NotificationUtils {
 
+    private static final String TAG = "NotificationUtils";
+
     /**
      * 有网络状态下等待
      * @param context
@@ -27,6 +31,11 @@ public class NotificationUtils {
      * @param id
      */
     public static void showPending(Context context, String title, long id) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifications Enabled are false");
+            return;
+        }
+
         // todo 未完成时点击需暂停下载
         Intent i = new Intent(context, NotificationClickReceiver.class);
         i.setAction(ACTION_NOTIFICATION_CLICKED);
@@ -50,6 +59,11 @@ public class NotificationUtils {
     }
 
     public static void showRunning(Context context, long id, String title, int percent, Bundle args) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifications Enabled are false");
+            return;
+        }
+
         Notification notification = new NotificationCompat.Builder(context)
                 .setContentTitle(title)
                 .setContentText("已下载:" + percent + "%")
@@ -69,6 +83,11 @@ public class NotificationUtils {
      * @param id
      */
     public static void showWaitingForNetwork(Context context, String title, long id) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifications Enabled are false");
+            return;
+        }
+
         // todo 未完成时点击需暂停下载
         Intent i = new Intent(context, NotificationClickReceiver.class);
         i.setAction(ACTION_NOTIFICATION_CLICKED);
@@ -92,6 +111,11 @@ public class NotificationUtils {
     }
 
     public static void showPaused(Context context, long id, String title, Bundle args) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifications Enabled are false");
+            return;
+        }
+
         // todo 未完成时点击需暂停下载
         Intent i = new Intent(context, NotificationClickReceiver.class);
         i.setAction(ACTION_NOTIFICATION_CLICKED);
@@ -115,6 +139,11 @@ public class NotificationUtils {
     }
 
     public static void showCompleted(Context context, long id, String title, Bundle args) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.d(TAG, "Notifications Enabled are false");
+            return;
+        }
+
         Intent receiverIntent = new Intent(context, NotificationClickReceiver.class);
         receiverIntent.setAction(OkDownloadManager.ACTION_NOTIFICATION_CLICKED);
         receiverIntent.putExtras(args);
