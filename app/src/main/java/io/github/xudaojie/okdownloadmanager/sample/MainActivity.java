@@ -3,6 +3,7 @@ package io.github.xudaojie.okdownloadmanager.sample;
 import android.Manifest;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -14,6 +15,7 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import io.github.xudaojie.okdownload.OkDownloadManager;
+import io.github.xudaojie.okdownload.util.SQLiteHelper;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -52,6 +54,12 @@ public class MainActivity extends AppCompatActivity {
                     // 33M
                     String url = "https://qd.myapp.com/myapp/qqteam/AndroidQQ/mobileqq_android.apk";
 //                    OkDownloadManager.download(mContext, "Download", url, "test.apk");
+
+                    SQLiteHelper sqLiteHelper = SQLiteHelper.getInstance(mContext);
+                    Cursor cursor = sqLiteHelper.getCursorByPause();
+                    if (cursor.moveToFirst()) {
+                        mDownloadId = cursor.getLong(cursor.getColumnIndex(OkDownloadManager.COLUMN_ID));
+                    }
 
                     if (mDownloadId != 0) {
                         OkDownloadManager downloadManager = OkDownloadManager.getInstance(mContext);

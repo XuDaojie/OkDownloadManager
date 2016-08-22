@@ -71,8 +71,6 @@ public class DownloadService extends Service {
                                     .body(new ProgressResponseBody(response.body(), new ProgressResponseBody.ProgressListener() {
                                         @Override
                                         public void update(long bytesRead, long contentLength, boolean done) {
-                                            Log.d(TAG, bytesRead + "/" + contentLength);
-
                                             long id = 0;
                                             String title = "";
                                             String filePath = "";
@@ -91,7 +89,7 @@ public class DownloadService extends Service {
                                             if (totalSizeBytes == 0) {
                                                 totalSizeBytes = contentLength;
                                             }
-
+                                            Log.d(TAG, currentSizeBytes + "/" + totalSizeBytes);
                                             int percent = (int) ((float) currentSizeBytes / totalSizeBytes * 100);
                                             // 广播接收也是在主界面执行的,全部发送的话会造成系统卡顿
                                             long currentTimeline = System.currentTimeMillis();
